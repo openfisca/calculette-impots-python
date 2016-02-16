@@ -9,6 +9,7 @@ import sys
 
 from calculateur_impots import core
 
+
 # Globals
 
 
