@@ -148,9 +148,9 @@ def float_to_python_source(node):
 
 
 def function_call_to_python_source(node):
-    return '{name}({parameters})'.format(
+    return '{name}({arguments})'.format(
+        arguments=', '.join(map(node_to_python_source, node['arguments'])),
         name=node['name'],
-        parameters=', '.join(map(node_to_python_source, node['parameters'])),
         )
 
 
@@ -168,19 +168,19 @@ def product_expression_to_python_source(node):
 
 
 def regle_to_python_source(node):
-    def iter_variable_definitions():
-        for variable_definition_node in node['variable_definitions']:
-            assert variable_definition_node['type'] == 'variable_definition', variable_definition_node
-            expression_node = variable_definition_node['expression']
+    def iter_formulas():
+        for formula_node in node['formulas']:
+            assert formula_node['type'] == 'formula', formula_node
+            expression_node = formula_node['expression']
             expression_source = node_to_python_source(expression_node)
-            arguments = []
-            find_node(expression_node, out=arguments, type='symbol')
-            yield 'def {}({}):\n    return {}\n\n'.format(
-                variable_definition_node['name'],
-                ', '.join(argument['value'] for argument in arguments),
-                expression_source,
+            symbols = []
+            find_node(expression_node, out=symbols, type='symbol')
+            yield 'def {name}({parameters}):\n    return {expression}\n\n'.format(
+                expression=expression_source,
+                name=formula_node['name'],
+                parameters=', '.join(sorted(set(symbol['value'] for symbol in symbols))),
                 )
-    return '\n'.join(iter_variable_definitions())
+    return '\n'.join(iter_formulas())
 
 
 def sum_expression_to_python_source(node):
@@ -202,9 +202,18 @@ def ternary_operator_to_python_source(node):
 # File transpilation functions
 
 
-def chap_1_to_python_source():
-    nodes = read_ast_json_file(os.path.join(args.json_dir, 'chap-1.json'))
-    source = '\n'.join(map(node_to_python_source, nodes))
+def chap_1_to_python_source(application):
+    regle_nodes = list(filter(
+        lambda node: application in node['applications'],
+        read_ast_json_file(os.path.join(args.json_dir, 'chap-1.json')),
+        ))
+    formulas_names = [
+        formula_node['name']
+        for regle_node in regle_nodes
+        for formula_node in regle_node['formulas']
+        ]
+    assert len(formulas_names) == len(set(formulas_names)), formulas_names
+    source = '\n'.join(map(node_to_python_source, regle_nodes))
     return source
 
 
@@ -220,6 +229,7 @@ def tgvH_json_to_python_source():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--application', default='batch', help='Application name')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Debug Arpeggio parser')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
     parser.add_argument('json_dir', help='Directory containing the JSON AST files')
@@ -230,13 +240,13 @@ def main():
         stream=sys.stdout,
         )
 
-    # variable_definition_by_name = tgvH_json_to_python_source()
-    # write_source(
-    #     file_name='definitions.py',
-    #     source='variable_definition_by_name = ' + value_to_python_source(variable_definition_by_name),
-    #     )
+    variable_definition_by_name = tgvH_json_to_python_source()
+    write_source(
+        file_name='variables_definitions.py',
+        source='variable_definition_by_name = ' + value_to_python_source(variable_definition_by_name),
+        )
 
-    chap_1_source = chap_1_to_python_source()
+    chap_1_source = chap_1_to_python_source(args.application)
     write_source(
         file_name='chap_1.py',
         source=chap_1_source,
