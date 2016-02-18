@@ -38,12 +38,13 @@ def read_ast_json_file(json_file_name):
     with open(json_file_path) as json_file:
         json_str = json_file.read()
     nodes = json.loads(json_str)
+    assert isinstance(nodes, list)
     return nodes
 
 
 def sanitized_variable_name(value):
     # Python variables must not begin with a digit.
-    return '_' + value if value[0].isdigit() else value
+    return '__' + value if value[0].isdigit() else value
 
 
 def value_to_python_source(value):
@@ -75,7 +76,7 @@ def write_source(file_name, json_file_name, original_file_name, transpilation_fu
         log.info('Output file "{}" was written with success.'.format(file_path))
 
 
-# Generic transpilation function
+# General transpilation function
 
 
 def infix_expression_to_python_source(node, operators={}):
@@ -94,6 +95,21 @@ def infix_expression_to_python_source(node, operators={}):
     return ' '.join(map(str, tokens))
 
 
+def iter_nodes(node, type, skip_type=None):
+    """
+    Iterates over all nodes matching `type` recursively in `node`.
+    """
+    if isinstance(node, dict):
+        if node['type'] == type:
+            yield node
+        elif skip_type is None or node['type'] != skip_type:
+            yield from iter_nodes(node=list(node.values()), skip_type=skip_type, type=type)
+    elif isinstance(node, list):
+        for child_node in node:
+            if isinstance(child_node, (list, dict)):
+                yield from iter_nodes(node=child_node, skip_type=skip_type, type=type)
+
+
 class TranspilationError(Exception):
     pass
 
@@ -102,9 +118,174 @@ deep_level = 0
 
 
 def node_to_python_source(node, parenthesised=False):
+    """
+    Main transpilation function which calls the specific transpilation functions below.
+    They are subfunctions to ensure they are never called directly.
+    """
+
+    def boolean_expression_to_python_source(node):
+        return infix_expression_to_python_source(node, operators={'et': 'and', 'ou': 'or'})
+
+    def comparaison_to_python_source(node):
+        return '{} {} {}'.format(
+            node_to_python_source(node['left_operand']),
+            {'=': '=='}.get(node['operator'], node['operator']),
+            node_to_python_source(node['right_operand']),
+            )
+
+    def dans_to_python_source(node):
+        if not all(option['type'] == 'symbol' for option in node['options']):
+            raise NotImplementedError(node)
+        return '{} in {}'.format(
+            node_to_python_source(node['expression'], parenthesised=True),
+            '({})'.format(', '.join(option['value'] for option in node['options']))
+            )
+
+    def expression_to_python_source(node):
+        return node_to_python_source(node)
+
+    def float_to_python_source(node):
+        return node['value']
+
+    def formula_to_python_source(node):
+        def iter_unlooped_parameters(loop_expression_nodes, symbol_nodes):
+            for loop_expression_node in loop_expression_nodes:
+                for loop_variable_node in loop_expression_node['loop_variables']:
+                    for symbol_node in symbol_nodes:
+                        loop_variable_name = loop_variable_node['name']
+                        symbol_name = symbol_node['value']
+                        if loop_variable_name in symbol_name:
+                            for domain_node in loop_variable_node['domains']:
+                                if domain_node['type'] == 'symbol':
+                                    yield symbol_name.replace(loop_variable_name, domain_node['value'], 1)
+                                elif domain_node['type'] == 'integer_range':
+                                    for index in range(domain_node['first'], domain_node['last'] + 1):
+                                        yield symbol_name.replace(loop_variable_name, str(index), 1)
+                        else:
+                            yield symbol_node['value']
+
+        parameters = sorted(set(
+            iter_unlooped_parameters(
+                loop_expression_nodes=iter_nodes(node=node['expression'], type='loop_expression'),
+                symbol_nodes=iter_nodes(node=node['expression'], skip_type='loop_variable', type='symbol')
+                ),
+            ))
+        expression_source = node_to_python_source(node['expression'])
+        return 'def {name}({parameters}):\n{docstring}    return {expression}\n'.format(
+            docstring='    """{}"""\n'.format(node['__docstring__']) if '__docstring__' in node else '',
+            expression=expression_source,
+            name=sanitized_variable_name(node['name']),
+            parameters=', '.join(parameters),
+            )
+
+    def function_call_to_python_source(node):
+        return '{name}({arguments})'.format(
+            arguments=', '.join(map(node_to_python_source, node['arguments'])),
+            name=node['name'],
+            )
+
+    def integer_to_python_source(node):
+        return str(node['value'])
+
+    def loop_expression_to_python_source(node):
+        def create_unlooped_expression_node(expression_node, loop_variable_name, loop_variable_value):
+            new_expression_node = copy.deepcopy(node['expression'])
+            unloop_symbols(
+                node=new_expression_node,
+                loop_variable_name=loop_variable_name,
+                loop_variable_value=loop_variable_value,
+                )
+            return new_expression_node
+
+        return ', '.join(
+            node_to_python_source(create_unlooped_expression_node(
+                expression_node=node['expression'],
+                loop_variable_name=loop_variable_node['name'],
+                loop_variable_value=loop_variable_value,
+                ))
+            for loop_variable_node in node['loop_variables']
+            for loop_variable_value in itertools.chain.from_iterable(
+                map(str, range(domain_node['first'], domain_node['last'] + 1))
+                if domain_node['type'] == 'integer_range'
+                else domain_node['value']
+                for domain_node in loop_variable_node['domains']
+                )
+            )
+
+    def pour_formula_to_python_source(node):
+        def create_unlooped_formula_node(formula_node, loop_variable_name, loop_variable_value):
+            new_formula_node = copy.deepcopy(formula_node)
+            new_formula_node.update({
+                'name': formula_node['name'].replace(loop_variable_name, loop_variable_value, 1),
+                '__docstring__': 'Original formula "{}" having {} = {}'.format(
+                    formula_node['name'],
+                    loop_variable_name,
+                    loop_variable_value,
+                    ),
+                })
+            unloop_symbols(
+                node=new_formula_node,
+                loop_variable_name=loop_variable_name,
+                loop_variable_value=loop_variable_value,
+                )
+            return new_formula_node
+
+        def iter_unlooped_formulas(formula_node, loop_variable_domain_nodes, loop_variable_name):
+            """
+            Yield many formulas given one formula and a loop variable name and domains (symbols and/or integer ranges).
+            The loop_variable_name is replaced in the formula name.
+            """
+            # Do not use "in" operator, strictly check for 1 occurence.
+            assert formula_node['name'].count(loop_variable_name) == 1, (loop_variable_name, formula_node)
+            for domain_node in loop_variable_domain_nodes:
+                if domain_node['type'] == 'symbol':
+                    yield create_unlooped_formula_node(
+                        formula_node=formula_node,
+                        loop_variable_name=loop_variable_name,
+                        loop_variable_value=domain_node['value'],
+                        )
+                elif domain_node['type'] == 'integer_range':
+                    for index in range(domain_node['first'], domain_node['last'] + 1):
+                        yield create_unlooped_formula_node(
+                            formula_node=formula_node,
+                            loop_variable_name=loop_variable_name,
+                            loop_variable_value=str(index),
+                            )
+                else:
+                    raise NotImplementedError('Unknown type for domain_node = {}'.format(domain_node))
+
+        formulas = itertools.chain.from_iterable(
+            iter_unlooped_formulas(
+                formula_node=node['formula'],
+                loop_variable_domain_nodes=loop_variable_node['domains'],
+                loop_variable_name=loop_variable_node['name'],
+                )
+            for loop_variable_node in node['loop_variables']
+            )
+        return (2 * '\n').join(map(node_to_python_source, formulas))
+
+    def product_expression_to_python_source(node):
+        return infix_expression_to_python_source(node)
+
+    def regle_to_python_source(node):
+        return (2 * '\n').join(map(node_to_python_source, node['formulas'])) + '\n'
+
+    def sum_expression_to_python_source(node):
+        return infix_expression_to_python_source(node)
+
+    def symbol_to_python_source(node):
+        return sanitized_variable_name(node['value'])
+
+    def ternary_operator_to_python_source(node):
+        return '{} if {} else {}'.format(
+            node_to_python_source(node['value_if_true'], parenthesised=True),
+            node_to_python_source(node['condition'], parenthesised=True),
+            node_to_python_source(node['value_if_false'], parenthesised=True) if 'value_if_false' in node else 0,
+            )
+
     global deep_level
     transpilation_function_name = node['type'] + '_to_python_source'
-    if transpilation_function_name not in globals():
+    if transpilation_function_name not in locals():
         error_message = '"def {}(node):" is not defined, node = {}'.format(
             transpilation_function_name,
             value_to_python_source(node),
@@ -115,7 +296,7 @@ def node_to_python_source(node, parenthesised=False):
         prefix='>' + ' ' * (deep_level * 4 + len('DEBUG:' + script_name) + len(transpilation_function_name) + 1),
         )[1:].lstrip()
     log.debug('{}{}({})'.format(' ' * deep_level * 4, transpilation_function_name, node_str))
-    transpilation_function = globals()[transpilation_function_name]
+    transpilation_function = locals()[transpilation_function_name]
     deep_level += 1
     try:
         source = transpilation_function(node)
@@ -124,7 +305,7 @@ def node_to_python_source(node, parenthesised=False):
         raise
     except Exception:  # We really want to catch all exceptions to debug.
         raise TranspilationError(value_to_python_source(node))
-    source = str(source)
+    assert isinstance(source, str), (source, node)
     if parenthesised and node['type'] not in ('integer', 'float', 'string', 'symbol'):
         source = '({})'.format(source)
     deep_level -= 1
@@ -133,169 +314,19 @@ def node_to_python_source(node, parenthesised=False):
     return source
 
 
-# Specific transpilation functions
-
-
-def boolean_expression_to_python_source(node):
-    return infix_expression_to_python_source(node, operators={'et': 'and', 'ou': 'or'})
-
-
-def comparaison_to_python_source(node):
-    return '{} {} {}'.format(
-        node_to_python_source(node['left_operand']),
-        {'=': '=='}.get(node['operator'], node['operator']),
-        node_to_python_source(node['right_operand']),
-        )
-
-
-def dans_to_python_source(node):
-    if not all(option['type'] == 'symbol' for option in node['options']):
-        raise NotImplementedError(node)
-    return '{} in {}'.format(
-        node_to_python_source(node['expression'], parenthesised=True),
-        '({})'.format(', '.join(option['value'] for option in node['options']))
-        )
-
-
-def expression_to_python_source(node):
-    return node_to_python_source(node)
-
-
-def float_to_python_source(node):
-    return node['value']
-
-
-def formula_to_python_source(node):
-    def find_symbols(node):
-        """Find all nodes matching `type` recursively in the AST tree."""
-        if isinstance(node, dict):
-            if node['type'] == 'symbol':
-                symbols.append(node)
-            else:
-                find_symbols(list(node.values()))
-        elif isinstance(node, list):
-            for child_node in node:
-                if isinstance(child_node, (list, dict)):
-                    find_symbols(child_node)
-
-    expression_source = node_to_python_source(node['expression'])
-    symbols = []
-    find_symbols(node['expression'])
-    return 'def {name}({parameters}):\n{docstring}    return {expression}\n'.format(
-        docstring='    """{}"""\n'.format(node['__docstring__']) if '__docstring__' in node else '',
-        expression=expression_source,
-        name=sanitized_variable_name(node['name']),
-        parameters=', '.join(sorted(set(map(node_to_python_source, symbols)))),
-        )
-
-
-def function_call_to_python_source(node):
-    return '{name}({arguments})'.format(
-        arguments=', '.join(map(node_to_python_source, node['arguments'])),
-        name=node['name'],
-        )
-
-
-def integer_to_python_source(node):
-    return node['value']
-
-
-def loop_expression_to_python_source(node):
-    # TODO
-    return node_to_python_source(node['expression'])
-
-
-def pour_formula_to_python_source(node):
-    def create_unlooped_formula_node(formula_node, loop_variable_name, loop_variable_value):
-        new_formula_node = copy.deepcopy(formula_node)
-        new_formula_node.update({
-            'name': formula_node['name'].replace(loop_variable_name, loop_variable_value, 1),
-            '__docstring__': 'Original formula "{}" having {} = {}'.format(
-                formula_node['name'],
-                loop_variable_name,
-                loop_variable_value,
-                ),
-            })
-        unloop_symbols(
-            node=new_formula_node,
-            loop_variable_name=loop_variable_name,
-            loop_variable_value=loop_variable_value,
-            )
-        return new_formula_node
-
-    def unloop_symbols(node, loop_variable_name, loop_variable_value):
-        """
-        Replace `loop_variable_name` by `loop_variable_value` in symbols recursively found in `node`.
-        This function mutates `node` and returns nothing.
-        """
-        if isinstance(node, dict):
-            if node['type'] == 'symbol':
-                node['value'] = node['value'].replace(loop_variable_name, loop_variable_value, 1)
-            else:
-                unloop_symbols(list(node.values()), loop_variable_name, loop_variable_value)
-        elif isinstance(node, list):
-            for child_node in node:
-                if isinstance(child_node, (list, dict)):
-                    unloop_symbols(child_node, loop_variable_name, loop_variable_value)
-
-    def iter_unlooped_formulas(formula_node, loop_variable_domain_nodes, loop_variable_name):
-        """
-        Yield many formulas given one formula and a loop variable name and domains (symbols and/or integer ranges).
-        The loop_variable_name is replaced in the formula name.
-        """
-        # Do not use "in" operator, strictly check for 1 occurence.
-        assert formula_node['name'].count(loop_variable_name) == 1, (loop_variable_name, formula_node)
-
-        for domain_node in loop_variable_domain_nodes:
-            if domain_node['type'] == 'symbol':
-                yield create_unlooped_formula_node(
-                    formula_node=formula_node,
-                    loop_variable_name=loop_variable_name,
-                    loop_variable_value=domain_node['value'],
-                    )
-            elif domain_node['type'] == 'integer_range':
-                for index in range(domain_node['first'], domain_node['last'] + 1):
-                    yield create_unlooped_formula_node(
-                        formula_node=formula_node,
-                        loop_variable_name=loop_variable_name,
-                        loop_variable_value=str(index),
-                        )
-            else:
-                raise NotImplementedError('Unknown type for domain_node = {}'.format(domain_node))
-
-    formulas = itertools.chain.from_iterable(
-        iter_unlooped_formulas(
-            formula_node=node['formula'],
-            loop_variable_domain_nodes=loop_variable['domains'],
-            loop_variable_name=loop_variable['name'],
-            )
-        for loop_variable in node['loop_variables']
-        )
-    return (2 * '\n').join(map(node_to_python_source, formulas))
-
-
-def product_expression_to_python_source(node):
-    return infix_expression_to_python_source(node)
-
-
-def regle_to_python_source(node):
-    return (2 * '\n').join(map(node_to_python_source, node['formulas'])) + '\n'
-
-
-def sum_expression_to_python_source(node):
-    return infix_expression_to_python_source(node)
-
-
-def symbol_to_python_source(node):
-    return sanitized_variable_name(node['value'])
-
-
-def ternary_operator_to_python_source(node):
-    return '{} if {} else {}'.format(
-        node_to_python_source(node['value_if_true'], parenthesised=True),
-        node_to_python_source(node['condition'], parenthesised=True),
-        node_to_python_source(node['value_if_false'], parenthesised=True) if 'value_if_false' in node else 0,
-        )
+def unloop_symbols(node, loop_variable_name, loop_variable_value):
+    """
+    Replace `loop_variable_name` by `loop_variable_value` in symbols recursively found in `node`.
+    This function mutates `node` and returns nothing.
+    """
+    if isinstance(node, dict):
+        if node['type'] == 'symbol':
+            node['value'] = node['value'].replace(loop_variable_name, loop_variable_value, 1)
+        else:
+            unloop_symbols(list(node.values()), loop_variable_name, loop_variable_value)
+    elif isinstance(node, list):
+        for child_node in node:
+            unloop_symbols(child_node, loop_variable_name, loop_variable_value)
 
 
 # File transpilation functions
