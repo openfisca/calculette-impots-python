@@ -366,10 +366,12 @@ def node_to_python_source(node, parenthesised=False):
             )
         raise NotImplementedError(error_message)
     nb_prefix_chars = len('DEBUG:' + script_name) + 1
-    node_str = textwrap.indent(
-        json.dumps(node, indent=4),
-        prefix='>' * nb_prefix_chars + ' ' * deep_level * 4,
-        )[nb_prefix_chars:].lstrip()
+    transpilation_function_short_name = transpilation_function_name[:-len('to_python_source') - 1]
+    prefix = '> {}{}'.format(
+        transpilation_function_short_name + ' ' * (nb_prefix_chars - len(transpilation_function_short_name) - 3) + ':',
+        ' ' * deep_level * 4,
+        )
+    node_str = textwrap.indent(json.dumps(node, indent=4), prefix=prefix)[nb_prefix_chars:].lstrip()
     log.debug(
         '{}{}({})'.format(
             ' ' * deep_level * 4 + '={}=> '.format(deep_level),
