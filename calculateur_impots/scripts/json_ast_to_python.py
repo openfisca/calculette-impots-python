@@ -398,12 +398,7 @@ def main():
     if not os.path.isdir(generated_dir_path):
         os.mkdir(generated_dir_path)
 
-    write_source(
-        file_name='variables_definitions.py',
-        json_file_name='tgvH.json',
-        original_file_name='tgvH.m',
-        transpilation_function=tgvH_json_to_python_source,
-        )
+    # chap-n
 
     for json_file_path in sorted(glob.iglob(os.path.join(args.json_dir, 'chap-*.json'))):
         json_file_name = os.path.basename(json_file_path)
@@ -414,6 +409,15 @@ def main():
             original_file_name=file_name_head + '.m',
             transpilation_function=chap_to_python_source,
             )
+
+    # tgvH
+
+    write_source(
+        file_name='variables_definitions.py',
+        json_file_name='tgvH.json',
+        original_file_name='tgvH.m',
+        transpilation_function=tgvH_json_to_python_source,
+        )
 
     return 0
 
