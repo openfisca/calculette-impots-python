@@ -78,13 +78,10 @@ def write_source(file_name, json_file_name, original_file_name, transpilation_fu
     if os.path.exists(file_path) and not args.force and args.json is None:
         log.info('Output file "{}" exists => skip.'.format(file_path))
     elif args.json is None or json_file_name in args.json:
-        log.debug(
-            'Transpiling JSON file "{}" with function "{}"'.format(json_file_name, transpilation_function.__name__),
-            )
+        log.info('Transpiling JSON file "{}" to Python file "{}"'.format(json_file_name, file_name))
         source = transpilation_function(json_file_name)
         with open(file_path, 'w') as output_file:
             output_file.write(header + source)
-        log.info('Output file "{}" was written with success.'.format(file_path))
 
 
 # General transpilation functions
@@ -155,12 +152,14 @@ def node_to_python_source(node, parenthesised=False):
             )
 
     def dans_to_python_source(node):
-        if not all(option['type'] == 'symbol' for option in node['options']):
-            raise NotImplementedError(node)
-        return '{} in {}'.format(
+        return '{} {} {}'.format(
             node_to_python_source(node['expression'], parenthesised=True),
-            '({})'.format(', '.join(option['value'] for option in node['options']))
+            'not in' if node.get('negative_form') else 'in',
+            node['enumeration'],
             )
+
+    def enumeration_values_to_python_source(node):
+        return str(tuple(node['values']))
 
     def expression_to_python_source(node):
         return node_to_python_source(node)
@@ -199,11 +198,11 @@ def node_to_python_source(node, parenthesised=False):
             parameters=', '.join(sorted(parameters)),
             )
 
-    def integer_range_to_python_source(node):
-        return 'interval({}, {})'.format(node['first'], node['last'])
-
     def integer_to_python_source(node):
         return str(node['value'])
+
+    def interval_to_python_source(node):
+        return 'interval({}, {})'.format(node['first'], node['last'])
 
     def loop_expression_to_python_source(node):
         def create_unlooped_expression_node(expression_node, loop_variable_name):
@@ -219,25 +218,21 @@ def node_to_python_source(node, parenthesised=False):
             raise NotImplementedError()
         loop_variable_node = node['loop_variables'][0]
 
-        return '({} for {} in {})'.format(
+        return '({} for {})'.format(
             node_to_python_source(create_unlooped_expression_node(
                 expression_node=node['expression'],
                 loop_variable_name=loop_variable_node['name'],
                 )),
-            loop_variable_node['name'],
             node_to_python_source(loop_variable_node),
             )
-
-    def loop_variable_enumeration_to_python_source(node):
-        return str(tuple(node['values']))
 
     def loop_variable_to_python_source(node):
         return ' or '.join(
             '{} in {}'.format(
                 node['name'],
-                node_to_python_source(domain_node),
+                node_to_python_source(enumerations_node),
                 )
-            for domain_node in node['domains']
+            for enumerations_node in node['enumerations']
             )
 
     def product_expression_to_python_source(node):
