@@ -461,6 +461,9 @@ def main():
             if not os.path.exists(json_file_path):
                 parser.error('JSON file "{}" does not exist.'.format(json_file_path))
 
+    if not os.path.isdir(generated_dir_path):
+        os.mkdir(generated_dir_path)
+
     write_source(
         file_name='variables_definitions.py',
         json_file_name='tgvH.json',
