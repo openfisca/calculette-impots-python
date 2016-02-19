@@ -28,6 +28,10 @@ def has_tag(tag, variable_definition):
     return tag in variable_definition.get('attributes', {}).get('tags', [])
 
 
+def load_environment():
+    formulas.load_formulas()
+
+
 class Simulation(object):
     def __init__(self, value_by_variable_name=None):
         self.value_by_variable_name = {} if value_by_variable_name is None else value_by_variable_name

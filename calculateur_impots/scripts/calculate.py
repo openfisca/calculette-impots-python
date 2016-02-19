@@ -62,6 +62,8 @@ def main():
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose or args.debug else logging.WARNING, stream=sys.stdout)
 
+    core.load_environment()
+
     variables_saisies = {variable_name: value for variable_name, value in iter_variables_saisies(args.variables)}
     simulation = core.Simulation(value_by_variable_name=variables_saisies)
     variables_calculees = [variable_name for variable_name in iter_variables_calculees(args.variables)]
