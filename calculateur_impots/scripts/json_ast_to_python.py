@@ -169,33 +169,10 @@ def node_to_python_source(node, parenthesised=False):
         return str(node['value'])
 
     def formula_to_python_source(node):
-        # def iter_unlooped_parameters(loop_expression_nodes, symbol_nodes):
-        #     for loop_expression_node in loop_expression_nodes:
-        #         for loop_variable_node in loop_expression_node['loop_variables']:
-        #             for symbol_node in symbol_nodes:
-        #                 loop_variable_name = loop_variable_node['name']
-        #                 symbol_name = symbol_node['value']
-        #                 if loop_variable_name in symbol_name:
-        #                     for domain_node in loop_variable_node['domains']:
-        #                         if domain_node['type'] == 'symbol':
-        #                             yield symbol_name.replace(loop_variable_name, domain_node['value'], 1)
-        #                         elif domain_node['type'] == 'integer_range':
-        #                             for index in range(domain_node['first'], domain_node['last'] + 1):
-        #                                 yield symbol_name.replace(loop_variable_name, str(index), 1)
-        #                 else:
-        #                     yield symbol_node['value']
-        #
-        # parameters = sorted(set(
-        #     iter_unlooped_parameters(
-        #         loop_expression_nodes=iter_nodes(node=node['expression'], type='loop_expression'),
-        #         symbol_nodes=iter_nodes(node=node['expression'], skip_type='loop_variable', type='symbol')
-        #         ),
-        #     ))
         expression_source = node_to_python_source(node['expression'])
         return '{name} = {expression}'.format(
             expression=expression_source,
             name=sanitized_variable_name(node['name']),
-            # parameters=', '.join(parameters),
             )
 
     def function_call_to_python_source(node):
@@ -221,51 +198,6 @@ def node_to_python_source(node, parenthesised=False):
             name=node['name'],
             parameters=', '.join(sorted(parameters)),
             )
-
-
-        # def create_unlooped_formula_node(formula_node, loop_variable_name):
-        #     new_formula_node = copy.deepcopy(formula_node)
-        #     new_formula_node['name'] = formula_node['name'].replace(loop_variable_name, loop_variable_value, 1)
-        #     update_symbols(
-        #         node=new_formula_node,
-        #         loop_variable_name=loop_variable_name,
-        #         loop_variable_value='({})'.format(loop_variable_name),
-        #         )
-        #     return new_formula_node
-        #
-        # def iter_unlooped_formulas(formula_node, loop_variable_domain_nodes, loop_variable_name):
-        #     """
-        #     Yield many formulas given one formula and a loop variable name and domains (symbols and/or integer ranges).
-        #     The loop_variable_name is replaced in the formula name.
-        #     """
-        #     # Do not use "in" operator, strictly check for 1 occurence.
-        #     assert formula_node['name'].count(loop_variable_name) == 1, (loop_variable_name, formula_node)
-        #     for domain_node in loop_variable_domain_nodes:
-        #         if domain_node['type'] == 'symbol':
-        #             yield create_unlooped_formula_node(
-        #                 formula_node=formula_node,
-        #                 loop_variable_name=loop_variable_name,
-        #                 loop_variable_value=domain_node['value'],
-        #                 )
-        #         elif domain_node['type'] == 'integer_range':
-        #             for index in range(domain_node['first'], domain_node['last'] + 1):
-        #                 yield create_unlooped_formula_node(
-        #                     formula_node=formula_node,
-        #                     loop_variable_name=loop_variable_name,
-        #                     loop_variable_value=str(index),
-        #                     )
-        #         else:
-        #             raise NotImplementedError('Unknown type for domain_node = {}'.format(domain_node))
-
-        # formulas = itertools.chain.from_iterable(
-        #     iter_unlooped_formulas(
-        #         formula_node=node['formula'],
-        #         loop_variable_domain_nodes=loop_variable_node['domains'],
-        #         loop_variable_name=loop_variable_node['name'],
-        #         )
-        #     for loop_variable_node in node['loop_variables']
-        #     )
-        # return (2 * '\n').join(map(node_to_python_source, formulas))
 
     def integer_range_to_python_source(node):
         return 'interval({}, {})'.format(node['first'], node['last'])
