@@ -87,7 +87,7 @@ def write_source(file_name, json_file_name, original_file_name, transpilation_fu
 # General transpilation functions
 
 
-def loop_variables_names(loop_variables_groups):
+def extract_loop_variables_names(loop_variables_groups):
     return set(map(
         itemgetter('name'),
         mapcat(
@@ -181,21 +181,23 @@ def node_to_python_source(node, parenthesised=False):
             )
 
     def indexed_formula_to_python_source(node):
-        def iter_body(loop_variables_groups):
-            for index, loop_variable_group in enumerate(loop_variables_groups):
-                expression_node = loop_variable_group['expression']
+        def iter_body():
+            for index, loop_variable_group in enumerate(node['loop_variables_groups']):
                 loop_variables_nodes = loop_variable_group['loop_variables']
                 yield '{} {}:\n        return {}'.format(
                     'if' if index == 0 else 'elif',
                     ' or '.join(map(node_to_python_source, loop_variables_nodes)),
-                    node_to_python_source(expression_node),
+                    node_to_python_source(unlooped(
+                        loop_variables_names=loop_variables_names,
+                        node=loop_variable_group['expression'],
+                        )),
                     )
             yield 'else:\n        raise NotImplementedError()'
-        parameters = loop_variables_names(loop_variables_groups=node['loop_variables_groups'])
+        loop_variables_names = extract_loop_variables_names(loop_variables_groups=node['loop_variables_groups'])
         return 'def {name}({parameters}):\n    {body}'.format(
-            body='\n    '.join(iter_body(loop_variables_groups=node['loop_variables_groups'])),
+            body='\n    '.join(iter_body()),
+            parameters=', '.join(sorted(loop_variables_names)),
             name=node['name'],
-            parameters=', '.join(sorted(parameters)),
             )
 
     def integer_to_python_source(node):
@@ -205,23 +207,13 @@ def node_to_python_source(node, parenthesised=False):
         return 'interval({}, {})'.format(node['first'], node['last'])
 
     def loop_expression_to_python_source(node):
-        def create_unlooped_expression_node(expression_node, loop_variable_name):
-            new_expression_node = copy.deepcopy(node['expression'])
-            update_symbols(
-                node=new_expression_node,
-                loop_variable_name=loop_variable_name,
-                loop_variable_value='({})'.format(loop_variable_name),
-                )
-            return new_expression_node
-
         if len(node['loop_variables']) > 1:
             raise NotImplementedError()
         loop_variable_node = node['loop_variables'][0]
-
         return '({} for {})'.format(
-            node_to_python_source(create_unlooped_expression_node(
-                expression_node=node['expression'],
-                loop_variable_name=loop_variable_node['name'],
+            node_to_python_source(unlooped(
+                loop_variables_names=[loop_variable_node['name']],
+                node=node['expression'],
                 )),
             node_to_python_source(loop_variable_node),
             )
@@ -241,14 +233,13 @@ def node_to_python_source(node, parenthesised=False):
     def regle_to_python_source(node):
         def without_loop_variables(name, loop_variables_groups):
             new_name = name
-            for loop_variable_name in loop_variables_names(loop_variables_groups):
+            for loop_variable_name in extract_loop_variables_names(loop_variables_groups):
                 new_name = new_name.replace(loop_variable_name, '', 1)
             return new_name
 
         pour_formulas_nodes = filter(lambda formula_node: formula_node['type'] == 'pour_formula', node['formulas'])
         loop_variables_groups_by_formula_name = collections.defaultdict(list)
         for pour_formula_node in pour_formulas_nodes:
-            expression_node = pour_formula_node['formula']['expression']
             loop_variables_nodes = pour_formula_node['loop_variables']
             formula_node = pour_formula_node['formula']
             formula_name = formula_node['name']
@@ -330,19 +321,31 @@ def node_to_python_source(node, parenthesised=False):
     return source
 
 
-def update_symbols(node, loop_variable_name, loop_variable_value):
+def unlooped(node, loop_variables_names):
+    new_node = copy.deepcopy(node)
+    update_symbols(current_node=new_node, loop_variables_names=loop_variables_names)
+    return new_node
+
+
+def update_symbols(current_node, loop_variables_names):
     """
-    Replace `loop_variable_name` by `loop_variable_value` in symbols recursively found in `node`.
-    This function mutates `node` and returns nothing.
+    Replace loop variables names contained in variable name by a function call with arguments,
+    in symbols recursively found in `current_node`.
+    This function mutates `current_node` and returns nothing. Better use the `unlooped` function.
+    Examples: ABCi => ABC(i), ABCij => ABC(i, j)
     """
-    if isinstance(node, dict):
-        if node['type'] == 'symbol':
-            node['value'] = node['value'].replace(loop_variable_name, loop_variable_value, 1)
+    if isinstance(current_node, dict):
+        if current_node['type'] == 'symbol':
+            current_node['value'] = current_node['value'].replace(
+                ''.join(loop_variables_names),
+                '({})'.format(', '.join(loop_variables_names)),
+                1,
+                )
         else:
-            update_symbols(list(node.values()), loop_variable_name, loop_variable_value)
-    elif isinstance(node, list):
-        for child_node in node:
-            update_symbols(child_node, loop_variable_name, loop_variable_value)
+            update_symbols(current_node=list(current_node.values()), loop_variables_names=loop_variables_names)
+    elif isinstance(current_node, list):
+        for child_node in current_node:
+            update_symbols(current_node=child_node, loop_variables_names=loop_variables_names)
 
 
 # File transpilation functions
@@ -397,7 +400,7 @@ def main():
 
     for json_file_path in sorted(glob.iglob(os.path.join(args.json_dir, 'chap-*.json'))):
         json_file_name = os.path.basename(json_file_path)
-        file_name_head, _ = os.path.splitext(json_file_name)
+        file_name_head = os.path.splitext(json_file_name)[0]
         write_source(
             file_name=file_name_head.replace('-', '_') + '.py',
             json_file_name=json_file_name,
