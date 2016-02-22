@@ -28,8 +28,8 @@ def has_tag(tag, variable_definition):
     return tag in variable_definition.get('attributes', {}).get('tags', [])
 
 
-def interval(first, last):
-    return range(first, last + 1)
+def is_positive(n):
+    return n > 0
 
 
 def load_environment():

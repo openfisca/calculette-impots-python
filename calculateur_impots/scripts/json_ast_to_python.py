@@ -36,11 +36,16 @@ generated_dir_path = os.path.abspath(os.path.join(script_dir_path, '..', 'genera
 
 list_ = list  # To use in ipdb since "list" is reserved to display the current source code.
 
+
 def mapcat(function, sequence):
     return itertools.chain.from_iterable(map(function, sequence))
 
 
 # Source code helper functions
+
+
+def lines_to_python_source(sequence):
+    return ''.join(itertools.chain.from_iterable(zip(sequence, itertools.repeat('\n'))))
 
 
 def read_ast_json_file(json_file_name):
@@ -54,7 +59,7 @@ def read_ast_json_file(json_file_name):
 
 def sanitized_variable_name(value):
     # Python variables must not begin with a digit.
-    return '__' + value if value[0].isdigit() else value
+    return '_' + value if value[0].isdigit() else value
 
 
 def value_to_python_source(value):
@@ -87,16 +92,6 @@ def write_source(file_name, json_file_name, original_file_name, transpilation_fu
 # General transpilation functions
 
 
-def extract_loop_variables_names(loop_variables_groups):
-    return set(map(
-        itemgetter('name'),
-        mapcat(
-            itemgetter('loop_variables'),
-            loop_variables_groups,
-            ),
-        ))
-
-
 def infix_expression_to_python_source(node, operators={}):
     def merge(*iterables):
         for values in itertools.zip_longest(*iterables, fillvalue=UnboundLocalError):
@@ -111,21 +106,6 @@ def infix_expression_to_python_source(node, operators={}):
         for index, operand_or_operator in merge(node['operands'], node['operators'])
         )
     return ' '.join(map(str, tokens))
-
-
-def iter_nodes(node, type):
-    """
-    Iterates over all nodes matching `type` recursively in `node`.
-    """
-    if isinstance(node, dict):
-        if node['type'] == type:
-            yield node
-        else:
-            yield from iter_nodes(node=list(node.values()), type=type)
-    elif isinstance(node, list):
-        for child_node in node:
-            if isinstance(child_node, (list, dict)):
-                yield from iter_nodes(node=child_node, type=type)
 
 
 class TranspilationError(Exception):
@@ -175,29 +155,27 @@ def node_to_python_source(node, parenthesised=False):
             )
 
     def function_call_to_python_source(node):
+        m_function_name = node['name']
+        python_function_name_by_m_function_name = {
+            'abs': 'abs',
+            # 'arr': '',
+            # 'inf': '',
+            'max': 'max',
+            'min': 'min',
+            # 'null': '',
+            # 'positif_ou_nul': '',
+            'positif': 'is_positive',
+            # 'present': '',
+            'somme': 'sum',
+            }
+        # TODO When all functions will be handled, use this assertion.
+        # assert m_function_name in python_function_name_by_m_function_name, \
+        #     'Unknown M function name: "{}"'.format(m_function_name)
+        # python_function_name = python_function_name_by_m_function_name[m_function_name]
+        python_function_name = python_function_name_by_m_function_name.get(m_function_name, m_function_name)
         return '{name}({arguments})'.format(
             arguments=', '.join(map(node_to_python_source, node['arguments'])),
-            name=node['name'],
-            )
-
-    def indexed_formula_to_python_source(node):
-        def iter_body():
-            for index, loop_variable_group in enumerate(node['loop_variables_groups']):
-                loop_variables_nodes = loop_variable_group['loop_variables']
-                yield '{} {}:\n        return {}'.format(
-                    'if' if index == 0 else 'elif',
-                    ' or '.join(map(node_to_python_source, loop_variables_nodes)),
-                    node_to_python_source(unlooped(
-                        loop_variables_names=loop_variables_names,
-                        node=loop_variable_group['expression'],
-                        )),
-                    )
-            yield 'else:\n        raise NotImplementedError()'
-        loop_variables_names = extract_loop_variables_names(loop_variables_groups=node['loop_variables_groups'])
-        return 'def {name}({parameters}):\n    {body}'.format(
-            body='\n    '.join(iter_body()),
-            parameters=', '.join(sorted(loop_variables_names)),
-            name=node['name'],
+            name=python_function_name,
             )
 
     def integer_to_python_source(node):
@@ -207,15 +185,16 @@ def node_to_python_source(node, parenthesised=False):
         return 'interval({}, {})'.format(node['first'], node['last'])
 
     def loop_expression_to_python_source(node):
-        if len(node['loop_variables']) > 1:
-            raise NotImplementedError()
-        loop_variable_node = node['loop_variables'][0]
-        return '({} for {})'.format(
-            node_to_python_source(unlooped(
-                loop_variables_names=[loop_variable_node['name']],
-                node=node['expression'],
-                )),
-            node_to_python_source(loop_variable_node),
+        return '[{}]'.format(
+            ', '.join(
+                map(
+                    node_to_python_source,
+                    iter_unlooped_nodes(
+                        loop_variables_nodes=node['loop_variables'],
+                        node=node['expression'],
+                        ),
+                    ),
+                ),
             )
 
     def loop_variable_to_python_source(node):
@@ -227,40 +206,23 @@ def node_to_python_source(node, parenthesised=False):
             for enumerations_node in node['enumerations']
             )
 
+    def pour_formula_to_python_source(node):
+        return lines_to_python_source(
+            map(
+                node_to_python_source,
+                iter_unlooped_nodes(
+                    loop_variables_nodes=node['loop_variables'],
+                    node=node['formula'],
+                    unloop_keys=['name'],
+                    ),
+                ),
+            )
+
     def product_expression_to_python_source(node):
         return infix_expression_to_python_source(node)
 
     def regle_to_python_source(node):
-        def without_loop_variables(name, loop_variables_groups):
-            new_name = name
-            for loop_variable_name in extract_loop_variables_names(loop_variables_groups):
-                new_name = new_name.replace(loop_variable_name, '', 1)
-            return new_name
-
-        pour_formulas_nodes = filter(lambda formula_node: formula_node['type'] == 'pour_formula', node['formulas'])
-        loop_variables_groups_by_formula_name = collections.defaultdict(list)
-        for pour_formula_node in pour_formulas_nodes:
-            loop_variables_nodes = pour_formula_node['loop_variables']
-            formula_node = pour_formula_node['formula']
-            formula_name = formula_node['name']
-            loop_variables_groups_by_formula_name[formula_name].append({
-                'expression': formula_node['expression'],
-                'loop_variables': loop_variables_nodes,
-                })
-        indexed_formulas_nodes = (
-            {
-                'loop_variables_groups': loop_variables_groups,
-                'name': without_loop_variables(
-                    loop_variables_groups=loop_variables_groups,
-                    name=formula_name,
-                    ),
-                'type': 'indexed_formula',
-                }
-            for formula_name, loop_variables_groups in loop_variables_groups_by_formula_name.items()
-            )
-        formulas_nodes = filter(lambda formula_node: formula_node['type'] == 'formula', node['formulas'])
-        all_formulas_nodes = itertools.chain(formulas_nodes, indexed_formulas_nodes)
-        return (3 * '\n').join(map(node_to_python_source, all_formulas_nodes)) + '\n'
+        return lines_to_python_source(map(node_to_python_source, node['formulas']))
 
     def sum_expression_to_python_source(node):
         return infix_expression_to_python_source(node)
@@ -274,6 +236,8 @@ def node_to_python_source(node, parenthesised=False):
             node_to_python_source(node['condition'], parenthesised=True),
             node_to_python_source(node['value_if_false'], parenthesised=True) if 'value_if_false' in node else 0,
             )
+
+    # End of specific transpilation functions, start of `node_to_python_source` function body
 
     global deep_level
     transpilation_function_name = node['type'] + '_to_python_source'
@@ -321,31 +285,75 @@ def node_to_python_source(node, parenthesised=False):
     return source
 
 
-def unlooped(node, loop_variables_names):
+# Unloop functions
+
+
+def enumeration_node_to_sequence(enumeration_node):
+    if enumeration_node['type'] == 'enumeration_values':
+        return enumeration_node['values']
+    elif enumeration_node['type'] == 'interval':
+        return range(enumeration_node['first'], enumeration_node['last'] + 1)
+    else:
+        raise NotImplementedError('Unknown type for enumeration_node = {}'.format(enumeration_node))
+
+
+def iter_unlooped_nodes(node, loop_variables_nodes, unloop_keys=None):
+    loop_variables_names, sequences = zip(*map(
+        lambda loop_variable_node: (
+            loop_variable_node['name'],
+            mapcat(
+                enumeration_node_to_sequence,
+                loop_variable_node['enumerations'],
+                ),
+            ),
+        loop_variables_nodes,
+        ))
+    loop_variables_values_list = itertools.product(*sequences)
+    for loop_variables_values in loop_variables_values_list:
+        value_by_loop_variable_name = dict(zip(loop_variables_names, loop_variables_values))
+        yield unlooped(
+            node=node,
+            unloop_keys=unloop_keys,
+            value_by_loop_variable_name=value_by_loop_variable_name,
+            )
+
+
+def unlooped(node, value_by_loop_variable_name, unloop_keys=None):
+    """
+    Replace loop variables names by values given by `value_by_loop_variable_name` in symbols recursively found
+    in `node`.
+    """
     new_node = copy.deepcopy(node)
-    update_symbols(current_node=new_node, loop_variables_names=loop_variables_names)
+    update_symbols(
+        node=new_node,
+        value_by_loop_variable_name=value_by_loop_variable_name,
+        )
+    if unloop_keys is not None:
+        for key in unloop_keys:
+            for loop_variable_name, loop_variable_value in value_by_loop_variable_name.items():
+                new_node[key] = new_node[key].replace(loop_variable_name, str(loop_variable_value), 1)
     return new_node
 
 
-def update_symbols(current_node, loop_variables_names):
+def update_symbols(node, value_by_loop_variable_name):
     """
-    Replace loop variables names contained in variable name by a function call with arguments,
-    in symbols recursively found in `current_node`.
-    This function mutates `current_node` and returns nothing. Better use the `unlooped` function.
-    Examples: ABCi => ABC(i), ABCij => ABC(i, j)
+    This function mutates `node` and returns nothing. Better use the `unlooped` function.
     """
-    if isinstance(current_node, dict):
-        if current_node['type'] == 'symbol':
-            current_node['value'] = current_node['value'].replace(
-                ''.join(loop_variables_names),
-                '({})'.format(', '.join(loop_variables_names)),
-                1,
-                )
+    if isinstance(node, dict):
+        if node['type'] == 'symbol':
+            for loop_variable_name, loop_variable_value in value_by_loop_variable_name.items():
+                node['value'] = node['value'].replace(loop_variable_name, str(loop_variable_value), 1)
         else:
-            update_symbols(current_node=list(current_node.values()), loop_variables_names=loop_variables_names)
-    elif isinstance(current_node, list):
-        for child_node in current_node:
-            update_symbols(current_node=child_node, loop_variables_names=loop_variables_names)
+            update_symbols(
+                node=list(node.values()),
+                value_by_loop_variable_name=value_by_loop_variable_name,
+                )
+    elif isinstance(node, list):
+        for child_node in node:
+            update_symbols(
+                node=child_node,
+                value_by_loop_variable_name=value_by_loop_variable_name,
+                )
 
 
 # File transpilation functions
