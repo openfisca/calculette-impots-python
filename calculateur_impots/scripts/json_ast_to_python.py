@@ -7,9 +7,9 @@ Transpile (roughly means convert) a JSON AST file to Python source code.
 """
 
 
-from operator import itemgetter
+from functools import reduce
+from operator import itemgetter, or_
 import argparse
-import collections
 import copy
 import glob
 import itertools
@@ -30,6 +30,14 @@ log = logging.getLogger(script_name)
 
 script_dir_path = os.path.dirname(os.path.abspath(__file__))
 generated_dir_path = os.path.abspath(os.path.join(script_dir_path, '..', 'generated'))
+
+state = {
+    'current_formula': None,
+    'formula_dependencies': {},
+    'formula_source': {},
+    'is_in_pour_formula': False,
+    'variable_definition': None,
+    }
 
 
 # Python helpers
@@ -148,11 +156,26 @@ def node_to_python_source(node, parenthesised=False):
         return str(node['value'])
 
     def formula_to_python_source(node):
+        global state
+        state['current_formula'] = []
         expression_source = node_to_python_source(node['expression'])
-        return '{name} = {expression}'.format(
+        dependencies = set(map(
+            itemgetter('value'),
+            iter_find_nodes(
+                node=node,
+                skip_type='loop_expression',  # loop_expression_to_python_source will handle its dependencies.
+                type='symbol',
+                ),
+            ))
+        formula_name = sanitized_variable_name(node['name'])
+        state['formula_dependencies'][formula_name] = dependencies
+        source = '{name} = {expression}'.format(
             expression=expression_source,
-            name=sanitized_variable_name(node['name']),
+            name=formula_name,
             )
+        state['formula_source'][formula_name] = source
+        state['current_formula'] = None
+        return None
 
     def function_call_to_python_source(node):
         m_function_name = node['name']
@@ -185,17 +208,25 @@ def node_to_python_source(node, parenthesised=False):
         return 'interval({}, {})'.format(node['first'], node['last'])
 
     def loop_expression_to_python_source(node):
-        return '[{}]'.format(
-            ', '.join(
-                map(
-                    node_to_python_source,
-                    iter_unlooped_nodes(
-                        loop_variables_nodes=node['loop_variables'],
-                        node=node['expression'],
-                        ),
-                    ),
-                ),
+        def iter_unlooped_loop_expressions_nodes_and_dependencies():
+            for unlooped_node in iter_unlooped_nodes(
+                loop_variables_nodes=node['loop_variables'],
+                node=node['expression'],
+                ):
+                dependencies = set(map(
+                    itemgetter('value'),
+                    iter_find_nodes(node=unlooped_node, type='symbol'),
+                    ))
+                yield unlooped_node, dependencies
+
+        unlooped_loop_expressions_nodes, dependencies = zip(*iter_unlooped_loop_expressions_nodes_and_dependencies())
+        dependencies = reduce(or_, dependencies)
+        source = '[{}]'.format(
+            ', '.join(map(node_to_python_source, unlooped_loop_expressions_nodes)),
             )
+        global state
+        state['current_formula'].append(dependencies)
+        return source
 
     def loop_variable_to_python_source(node):
         return ' or '.join(
@@ -207,22 +238,21 @@ def node_to_python_source(node, parenthesised=False):
             )
 
     def pour_formula_to_python_source(node):
-        return lines_to_python_source(
-            map(
-                node_to_python_source,
-                iter_unlooped_nodes(
-                    loop_variables_nodes=node['loop_variables'],
-                    node=node['formula'],
-                    unloop_keys=['name'],
-                    ),
-                ),
-            )
+        for unlooped_formula_node in iter_unlooped_nodes(
+            loop_variables_nodes=node['loop_variables'],
+            node=node['formula'],
+            unloop_keys=['name'],
+            ):
+            node_to_python_source(unlooped_formula_node)
+        return None
 
     def product_expression_to_python_source(node):
         return infix_expression_to_python_source(node)
 
     def regle_to_python_source(node):
-        return lines_to_python_source(map(node_to_python_source, node['formulas']))
+        for formula_node in node['formulas']:
+            node_to_python_source(formula_node)
+        return None
 
     def sum_expression_to_python_source(node):
         return infix_expression_to_python_source(node)
@@ -270,15 +300,15 @@ def node_to_python_source(node, parenthesised=False):
         raise
     except Exception:  # We really want to catch all exceptions to debug.
         raise TranspilationError(value_to_python_source(node))
-    assert isinstance(source, str), (source, node)
-    if parenthesised and node['type'] not in ('integer', 'float', 'string', 'symbol'):
-        source = '({})'.format(source)
+    assert source is None or isinstance(source, str), (source, node)
     deep_level -= 1
+    if source is not None and parenthesised and node['type'] not in ('integer', 'float', 'string', 'symbol'):
+        source = '({})'.format(source)
     log.debug(
         '{}<={}= {}'.format(
             ' ' * deep_level * 4,
             deep_level,
-            textwrap.indent(source, prefix='> ')[1:].lstrip(),
+            '' if source is None else textwrap.indent(source, prefix='> ')[1:].lstrip(),
             )
         )
     assert deep_level >= 0, deep_level
@@ -295,6 +325,21 @@ def enumeration_node_to_sequence(enumeration_node):
         return range(enumeration_node['first'], enumeration_node['last'] + 1)
     else:
         raise NotImplementedError('Unknown type for enumeration_node = {}'.format(enumeration_node))
+
+
+def iter_find_nodes(node, type, skip_type=None):
+    """
+    Iterates over all nodes matching `type` recursively in `node`.
+    """
+    if isinstance(node, dict):
+        if node['type'] == type:
+            yield node
+        elif skip_type is None or node['type'] != skip_type:
+            yield from iter_find_nodes(node=list(node.values()), skip_type=skip_type, type=type)
+    elif isinstance(node, list):
+        for child_node in node:
+            if isinstance(child_node, (list, dict)):
+                yield from iter_find_nodes(node=child_node, skip_type=skip_type, type=type)
 
 
 def iter_unlooped_nodes(node, loop_variables_nodes, unloop_keys=None):
@@ -359,14 +404,14 @@ def update_symbols(node, value_by_loop_variable_name):
 # File transpilation functions
 
 
-def chap_to_python_source(json_file_name):
+def load_chap_file(json_file_name):
     global args
-    regle_nodes = list(filter(
+    regles_nodes = filter(
         lambda node: args.application in node['applications'],
         read_ast_json_file(json_file_name),
-        ))
-    source = '\n'.join(map(node_to_python_source, regle_nodes))
-    return source
+        )
+    for regle_node in regles_nodes:
+        node_to_python_source(regle_node)
 
 
 def tgvH_json_to_python_source(json_file_name):
@@ -374,8 +419,10 @@ def tgvH_json_to_python_source(json_file_name):
     variable_definition_by_name = {
         node['name']: node
         for node in nodes
-        if node['type'] in ('variable_calculee', 'variable_saisie')
+        # if node['type'] in ('variable_calculee', 'variable_saisie')
         }
+    global state
+    state['variable_definition'] = variable_definition_by_name
     source = 'variable_definition_by_name = ' + value_to_python_source(variable_definition_by_name)
     return source
 
@@ -406,15 +453,11 @@ def main():
 
     # chap-n
 
+    source_by_chap_name = {}
     for json_file_path in sorted(glob.iglob(os.path.join(args.json_dir, 'chap-*.json'))):
         json_file_name = os.path.basename(json_file_path)
         file_name_head = os.path.splitext(json_file_name)[0]
-        write_source(
-            file_name=file_name_head.replace('-', '_') + '.py',
-            json_file_name=json_file_name,
-            original_file_name=file_name_head + '.m',
-            transpilation_function=chap_to_python_source,
-            )
+        load_chap_file(json_file_name)
 
     # tgvH
 
@@ -424,6 +467,12 @@ def main():
         original_file_name='tgvH.m',
         transpilation_function=tgvH_json_to_python_source,
         )
+
+    formulas_sources = []
+    for formula_name, dependencies in state['formula_dependencies'].items():
+        for dependency_name in dependencies:
+            import ipdb; ipdb.set_trace()
+            # if state['variable_definition'][dependency_name]['type'] == 'variable_calculee':
 
     return 0
 
