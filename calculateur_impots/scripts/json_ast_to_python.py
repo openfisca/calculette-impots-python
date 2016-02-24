@@ -106,10 +106,6 @@ def infix_expression_to_python_source(node, operators={}):
     return ' '.join(map(str, tokens))
 
 
-class TranspilationError(Exception):
-    pass
-
-
 deep_level = 0
 
 
@@ -248,7 +244,10 @@ def node_to_python_source(node, parenthesised=False):
         return infix_expression_to_python_source(node)
 
     def symbol_to_python_source(node):
-        return sanitized_variable_name(node['value'])
+        symbol = node['value']
+        return 'saisies.get({!r}, 0)'.format(symbol) \
+            if state['variables_definitions'].get(symbol, {}).get('type') == 'variable_saisie' \
+            else sanitized_variable_name(symbol)
 
     def ternary_operator_to_python_source(node):
         return '{} if {} else {}'.format(
@@ -256,6 +255,9 @@ def node_to_python_source(node, parenthesised=False):
             node_to_python_source(node['condition'], parenthesised=True),
             node_to_python_source(node['value_if_false'], parenthesised=True) if 'value_if_false' in node else 0,
             )
+
+    def verif_to_python_source(node):
+        import ipdb; ipdb.set_trace()
 
     # End of specific transpilation functions, start of `node_to_python_source` function body
 
@@ -283,13 +285,7 @@ def node_to_python_source(node, parenthesised=False):
         )
     transpilation_function = locals()[transpilation_function_name]
     deep_level += 1
-    try:
-        source = transpilation_function(node)
-    except (NotImplementedError, TranspilationError):
-        # Bubble up all nested calls of node_to_python_source.
-        raise
-    except Exception:  # We really want to catch all exceptions to debug.
-        raise TranspilationError(value_to_python_source(node))
+    source = transpilation_function(node)
     assert source is None or isinstance(source, str), (source, node)
     deep_level -= 1
     unparenthesised_node_types = ('float', 'function_call', 'integer', 'string', 'symbol')
@@ -392,10 +388,21 @@ def update_symbols(node, value_by_loop_variable_name):
                 )
 
 
-# File transpilation functions
+# Load files functions
 
 
-def load_chap_file(json_file_name):
+def iter_json_file_names(*pathnames):
+    for json_file_path in sorted(itertools.chain.from_iterable(map(
+                lambda pathname: glob.iglob(os.path.join(args.json_dir, pathname)),
+                pathnames,
+                ))):
+        json_file_name = os.path.basename(json_file_path)
+        if args.json is None or args.json == json_file_name:
+            file_name_head = os.path.splitext(json_file_name)[0]
+            yield json_file_name
+
+
+def load_regles_file(json_file_name):
     log.info('Loading "{}"...'.format(json_file_name))
     regles_nodes = read_ast_json_file(json_file_name)
     global args
@@ -421,7 +428,23 @@ def load_tgvH_file(json_file_name):
     return None
 
 
+def load_verifs_file(json_file_name):
+    log.info('Loading "{}"...'.format(json_file_name))
+    verifs_nodes = read_ast_json_file(json_file_name)
+    global args
+    for verif_node in verifs_nodes:
+        node_to_python_source(verif_node)
+    return None
+
+
 # Dependencies graph functions
+
+
+def get_formula_source(formula_name):
+    return state['formulas_sources'].get(
+        formula_name,
+        '{} = 0  # Formula source not found'.format(formula_name),
+        )
 
 
 def get_ordered_formulas_names(formulas_dependencies):
@@ -493,23 +516,17 @@ def main():
         state = json.loads(state_str)
         log.info('State file "{}" loaded with success'.format(state_file_name))
     else:
-        # chap and res-ser
-        for json_file_path in sorted(
-                itertools.chain(
-                    glob.iglob(os.path.join(args.json_dir, 'chap-*.json')),
-                    glob.iglob(os.path.join(args.json_dir, 'res-ser*.json')),
-                    )
-                ):
-            json_file_name = os.path.basename(json_file_path)
-            if args.json is None or args.json == json_file_name:
-                file_name_head = os.path.splitext(json_file_name)[0]
-                load_chap_file(json_file_name)
-                if args.json is not None:
-                    break
-        # tgvH
+        # Load variables definitions (before regles)
         json_file_name = 'tgvH.json'
-        if args.json is None or args.json == json_file_name:
-            load_tgvH_file(json_file_name)
+        load_tgvH_file(json_file_name)
+
+        # Load regles
+        for json_file_name in iter_json_file_names('chap-*.json', 'res-ser*.json'):
+            load_regles_file(json_file_name)
+
+        # Load verifs
+        # for json_file_name in iter_json_file_names('coc*.json', 'coi*.json'):
+            # load_verifs_file(json_file_name)
 
     if args.save_state:
         class SetEncoder(json.JSONEncoder):
@@ -523,7 +540,6 @@ def main():
         log.info('State file "{}" saved with success => exit'.format(state_file_name))
     elif args.json is None:
         # Output transpiled sources to Python file.
-
         variables_const = list(
             sorted(
                 filter(lambda v: v['type'] == 'variable_const', state['variables_definitions'].values()),
@@ -541,7 +557,6 @@ def main():
         log.info('{} formulas sources'.format(len(state['formulas_sources'])))
         ordered_formulas_names = get_ordered_formulas_names(formulas_dependencies=state['formulas_dependencies'])
         log.info('{} ordered_formulas_names'.format(len(ordered_formulas_names)))
-
         write_source(
             file_name='variables_definitions.py',
             source='variable_definition_by_name = {}\n'.format(value_to_python_source(state['variables_definitions'])),
@@ -552,10 +567,7 @@ def main():
             )
         write_source(
             file_name='formulas.py',
-            source=lines_to_python_source(map(
-                lambda formula_name: state['formulas_sources'].get(formula_name, '# TODO {}'.format(formula_name)),
-                ordered_formulas_names,
-                )),
+            source=lines_to_python_source(map(get_formula_source, ordered_formulas_names)),
             )
 
     return 0
