@@ -167,11 +167,11 @@ def node_to_python_source(node, parenthesised=False):
         m_function_name = node['name']
         python_function_name_by_m_function_name = {
             'abs': 'abs',
-            # 'arr': '',
+            'arr': 'round',
             # 'inf': '',
             'max': 'max',
             'min': 'min',
-            # 'null': '',
+            'null': 'is_zero',
             # 'positif_ou_nul': '',
             'positif': 'is_positive',
             # 'present': '',
@@ -443,16 +443,12 @@ def load_verifs_file(json_file_name):
 def get_formula_source(formula_name):
     return state['formulas_sources'].get(
         formula_name,
-        '{} = 0  # Formula source not found'.format(formula_name),
+        '{} = 0'.format(formula_name),
         )
 
 
 def get_ordered_formulas_names(formulas_dependencies):
     """Return a list of formula names in a dependencies resolution order."""
-    def is_writable(formula_name):
-        variable_type = state['variables_definitions'][formula_name]['type']
-        return variable_type == 'variable_calculee' and not has_tag(formula_name, 'base')
-
     writable_formulas_dependencies = {
         key: set(filter(is_writable, values))
         for key, values in formulas_dependencies.items()
@@ -465,7 +461,8 @@ def get_ordered_formulas_names(formulas_dependencies):
     ordered_formulas_names = []
     expected_formulas_count = len(writable_formulas_names)  # Store it since writable_formulas_names is mutated below.
     while len(ordered_formulas_names) < expected_formulas_count:
-        for writable_formula_name in writable_formulas_names:
+        # Iterate sorted set for stability between executions of the script.
+        for writable_formula_name in sorted(writable_formulas_names):
             if all(map(
                 lambda dependency_name: dependency_name in ordered_formulas_names,
                 writable_formulas_dependencies.get(writable_formula_name, []),
@@ -477,9 +474,9 @@ def get_ordered_formulas_names(formulas_dependencies):
     return ordered_formulas_names
 
 
-def has_tag(variable_name, tag):
-    variable_definition = state['variables_definitions'][variable_name]
-    return tag in variable_definition.get('attributes', {}).get('tags', [])
+def is_writable(formula_name):
+    variable_type = state['variables_definitions'][formula_name]['type']
+    return variable_type == 'variable_calculee'
 
 
 # Main
@@ -567,7 +564,14 @@ def main():
             )
         write_source(
             file_name='formulas.py',
-            source=lines_to_python_source(map(get_formula_source, ordered_formulas_names)),
+            source=lines_to_python_source(itertools.chain(
+                (
+                    'from ..core import *',
+                    'from .constants import *',
+                    '\n',
+                    ),
+                map(get_formula_source, ordered_formulas_names),
+                )),
             )
 
     return 0
