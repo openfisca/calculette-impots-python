@@ -38,6 +38,7 @@ state = {
     'formulas_sources': {},
     'variables_definitions': None,
     }
+state_file_name = 'state.json'
 
 
 # Python helpers
@@ -466,8 +467,8 @@ def main():
     parser.add_argument('--application', default='batch', help='Application name')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Display debug messages')
     parser.add_argument('--json', help='Parse only this JSON file and exit')
-    parser.add_argument('--save-state', help='Save state in JSON file and exit')
-    parser.add_argument('--load-state', help='Load state from JSON file')
+    parser.add_argument('--save-state', action='store_true', default=False, help='Save state in JSON file and exit')
+    parser.add_argument('--load-state', action='store_true', default=False, help='Load state from JSON file')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
     parser.add_argument('json_dir', help='Directory containing the JSON AST files')
     global args
@@ -486,11 +487,11 @@ def main():
             parser.error('JSON file "{}" does not exist.'.format(json_file_path))
 
     if args.load_state:
-        with open(args.load_state) as state_file:
+        with open(state_file_name) as state_file:
             state_str = state_file.read()
         global state
         state = json.loads(state_str)
-        log.info('State file "{}" loaded with success'.format(args.load_state))
+        log.info('State file "{}" loaded with success'.format(state_file_name))
     else:
         # chap and res-ser
         for json_file_path in sorted(
@@ -517,9 +518,9 @@ def main():
                     return list(obj)
                 return json.JSONEncoder.default(self, obj)
         state_str = json.dumps(state, cls=SetEncoder)
-        with open(args.save_state, 'w') as state_file:
+        with open(state_file_name, 'w') as state_file:
             state_file.write(state_str)
-        log.info('State file "{}" saved with success => exit'.format(args.save_state))
+        log.info('State file "{}" saved with success => exit'.format(state_file_name))
     elif args.json is None:
         # Output transpiled sources to Python file.
 
