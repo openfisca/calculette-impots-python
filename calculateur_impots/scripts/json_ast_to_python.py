@@ -82,7 +82,7 @@ def write_source(file_name, source):
 """
     file_path = os.path.join(generated_dir_path, file_name)
     with open(file_path, 'w') as output_file:
-        output_file.write(source)
+        output_file.write(lines_to_python_source((header, source)))
     log.info('Output file "{}" written with success'.format(file_path))
 
 
@@ -291,7 +291,8 @@ def node_to_python_source(node, parenthesised=False):
         raise TranspilationError(value_to_python_source(node))
     assert source is None or isinstance(source, str), (source, node)
     deep_level -= 1
-    if source is not None and parenthesised and node['type'] not in ('integer', 'float', 'string', 'symbol'):
+    unparenthesised_node_types = ('float', 'function_call', 'integer', 'string', 'symbol')
+    if source is not None and parenthesised and node['type'] not in unparenthesised_node_types:
         source = '({})'.format(source)
     log.debug(
         '{}<={}= {}'.format(
@@ -395,18 +396,18 @@ def update_symbols(node, value_by_loop_variable_name):
 
 def load_chap_file(json_file_name):
     log.info('Loading "{}"...'.format(json_file_name))
+    regles_nodes = read_ast_json_file(json_file_name)
     global args
-    regles_nodes = filter(
+    application_regles_nodes = filter(
         lambda node: args.application in node['applications'],
-        read_ast_json_file(json_file_name),
+        regles_nodes,
         )
-    for regle_node in regles_nodes:
+    for regle_node in application_regles_nodes:
         node_to_python_source(regle_node)
     return None
 
 
-def load_tgvH_file():
-    json_file_name = 'tgvH.json'
+def load_tgvH_file(json_file_name):
     log.info('Loading "{}"...'.format(json_file_name))
     nodes = read_ast_json_file(json_file_name)
     variable_definition_by_name = {
@@ -429,7 +430,7 @@ def get_ordered_formulas_names(formulas_dependencies):
         return variable_type == 'variable_calculee' and not has_tag(formula_name, 'base')
 
     writable_formulas_dependencies = {
-        key: filter(is_writable, values)
+        key: set(filter(is_writable, values))
         for key, values in formulas_dependencies.items()
         if is_writable(key)
         }
@@ -438,10 +439,17 @@ def get_ordered_formulas_names(formulas_dependencies):
         ))
     assert all(map(is_writable, writable_formulas_names))
     ordered_formulas_names = []
-    while len(ordered_formulas_names) < len(writable_formulas_names):
+    expected_formulas_count = len(writable_formulas_names)  # Store it since writable_formulas_names is mutated below.
+    while len(ordered_formulas_names) < expected_formulas_count:
         for writable_formula_name in writable_formulas_names:
-            if all(map(is_writable, writable_formulas_dependencies.get(writable_formula_name, []))):
+            if all(map(
+                lambda dependency_name: dependency_name in ordered_formulas_names,
+                writable_formulas_dependencies.get(writable_formula_name, []),
+                )):
                 ordered_formulas_names.append(writable_formula_name)
+                log.debug('{} ordered_formulas_names added (latest {})'.format(len(ordered_formulas_names),
+                    writable_formula_name))
+        writable_formulas_names -= set(ordered_formulas_names)
     return ordered_formulas_names
 
 
@@ -457,6 +465,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--application', default='batch', help='Application name')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Display debug messages')
+    parser.add_argument('--json', help='Parse only this JSON file and exit')
     parser.add_argument('--save-state', help='Save state in JSON file and exit')
     parser.add_argument('--load-state', help='Load state from JSON file')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
@@ -471,6 +480,11 @@ def main():
     if not os.path.isdir(generated_dir_path):
         os.mkdir(generated_dir_path)
 
+    if args.json is not None:
+        json_file_path = os.path.join(args.json_dir, args.json)
+        if not os.path.exists(json_file_path):
+            parser.error('JSON file "{}" does not exist.'.format(json_file_path))
+
     if args.load_state:
         with open(args.load_state) as state_file:
             state_str = state_file.read()
@@ -478,14 +492,23 @@ def main():
         state = json.loads(state_str)
         log.info('State file "{}" loaded with success'.format(args.load_state))
     else:
-        # chap-n
-        for json_file_path in sorted(glob.iglob(os.path.join(args.json_dir, 'chap-*.json'))):
+        # chap and res-ser
+        for json_file_path in sorted(
+                itertools.chain(
+                    glob.iglob(os.path.join(args.json_dir, 'chap-*.json')),
+                    glob.iglob(os.path.join(args.json_dir, 'res-ser*.json')),
+                    )
+                ):
             json_file_name = os.path.basename(json_file_path)
-            file_name_head = os.path.splitext(json_file_name)[0]
-            load_chap_file(json_file_name)
-
+            if args.json is None or args.json == json_file_name:
+                file_name_head = os.path.splitext(json_file_name)[0]
+                load_chap_file(json_file_name)
+                if args.json is not None:
+                    break
         # tgvH
-        load_tgvH_file()
+        json_file_name = 'tgvH.json'
+        if args.json is None or args.json == json_file_name:
+            load_tgvH_file(json_file_name)
 
     if args.save_state:
         class SetEncoder(json.JSONEncoder):
@@ -497,10 +520,15 @@ def main():
         with open(args.save_state, 'w') as state_file:
             state_file.write(state_str)
         log.info('State file "{}" saved with success => exit'.format(args.save_state))
-    else:
+    elif args.json is None:
         # Output transpiled sources to Python file.
 
-        variables_const = list(filter(lambda v: v['type'] == 'variable_const', state['variables_definitions'].values()))
+        variables_const = list(
+            sorted(
+                filter(lambda v: v['type'] == 'variable_const', state['variables_definitions'].values()),
+                key=itemgetter('name'),
+                ),
+            )
         log.info('{} variables definitions'.format(len(state['variables_definitions'])))
         log.info('    {} calculees'.format(
             len(list(filter(lambda v: v['type'] == 'variable_calculee', state['variables_definitions'].values())))
@@ -508,7 +536,7 @@ def main():
         log.info('    {} saisies'.format(
             len(list(filter(lambda v: v['type'] == 'variable_saisie', state['variables_definitions'].values())))
             ))
-        log.info('    {} const'.format(len(list(variables_const))))
+        log.info('    {} const'.format(len(variables_const)))
         log.info('{} formulas sources'.format(len(state['formulas_sources'])))
         ordered_formulas_names = get_ordered_formulas_names(formulas_dependencies=state['formulas_dependencies'])
         log.info('{} ordered_formulas_names'.format(len(ordered_formulas_names)))
