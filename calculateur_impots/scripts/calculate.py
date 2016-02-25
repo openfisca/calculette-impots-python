@@ -52,7 +52,7 @@ def main():
         if args.saisies is not None \
         else None
 
-    core.calculate_formulas(variables_saisies=variables_saisies)
+    core.evaluate_formulas(variables_saisies=variables_saisies)
 
     calculees = [variable_name for variable_name in iter_variables_calculees(args.calculees)]
     print(calculees)
