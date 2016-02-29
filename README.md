@@ -19,3 +19,9 @@ Cette étape n'est utile que lorsque les fichiers JSON définissant l'AST change
 ```
 $ python3 calculateur_impots/scripts/json_ast_to_python.py /path/to/m-language-parser/json
 ```
+
+## Qualité du code
+
+```
+$ flake8 --max-line-length 120 .
+```
