@@ -8,15 +8,16 @@ These functions are called by transpiler.core.
 """
 
 
-# from functools import reduce
 import itertools
 import json
 import logging
 import pprint
 import textwrap
 
-from ..core import get_variable_type, mapcat
-from .base import sanitized_variable_name
+from toolz import mapcat
+
+from ..core import get_variable_type
+from .base import get_visitor, sanitized_variable_name
 from .unloop_helpers import iter_unlooped_nodes
 
 
@@ -27,7 +28,7 @@ log = logging.getLogger(__name__)
 
 
 def visit_infix_expression(node, operators={}):
-    def merge(*iterables):
+    def interleave(*iterables):
         for values in itertools.zip_longest(*iterables, fillvalue=UnboundLocalError):
             for index, value in enumerate(values):
                 if value != UnboundLocalError:
@@ -37,24 +38,9 @@ def visit_infix_expression(node, operators={}):
         visit_node(operand_or_operator)
         if index == 0
         else operators.get(operand_or_operator, operand_or_operator)
-        for index, operand_or_operator in merge(node['operands'], node['operators'])
+        for index, operand_or_operator in interleave(node['operands'], node['operators'])
         )
     return ' '.join(map(str, tokens))
-
-
-def iter_find_nodes(node, type, skip_type=None):
-    """
-    Iterates over all nodes matching `type` recursively in `node`.
-    """
-    if isinstance(node, dict):
-        if node['type'] == type:
-            yield node
-        elif skip_type is None or node['type'] != skip_type:
-            yield from iter_find_nodes(node=list(node.values()), skip_type=skip_type, type=type)
-    elif isinstance(node, list):
-        for child_node in node:
-            if isinstance(child_node, (list, dict)):
-                yield from iter_find_nodes(node=child_node, skip_type=skip_type, type=type)
 
 
 # Main visitor
@@ -64,35 +50,32 @@ deep_level = 0
 
 
 def visit_node(node, parenthesised=False):
-    """
-    Main transpilation function which calls the specific transpilation functions below.
-    They are subfunctions to ensure they are never called directly.
-    """
+    """Main visitor which calls the specific visitors below."""
     global deep_level
-    transpilation_function_name = 'visit_' + node['type']
-    if transpilation_function_name not in globals():
+    visitor = get_visitor(module_name=__name__, node=node)
+    visitor_name = 'visit_' + node['type']
+    if visitor is None:
         error_message = '"def {}(node):" is not defined, node = {}'.format(
-            transpilation_function_name,
+            visitor_name,
             pprint.pformat(node, width=120),
             )
         raise NotImplementedError(error_message)
     nb_prefix_chars = len('DEBUG:' + __name__) + 1
-    transpilation_function_short_name = transpilation_function_name[len('visit_'):]
+    visitor_short_name = visitor_name[len('visit_'):]
     prefix = '> {}{}'.format(
-        transpilation_function_short_name + ' ' * (nb_prefix_chars - len(transpilation_function_short_name) - 3) + ':',
+        visitor_short_name + ' ' * (nb_prefix_chars - len(visitor_short_name) - 3) + ':',
         ' ' * deep_level * 4,
         )
     node_str = textwrap.indent(json.dumps(node, indent=4), prefix=prefix)[nb_prefix_chars:].lstrip()
     log.debug(
         '{}{}({})'.format(
             ' ' * deep_level * 4 + '={}=> '.format(deep_level),
-            transpilation_function_name,
+            visitor_name,
             node_str,
             )
         )
-    transpilation_function = globals()[transpilation_function_name]
     deep_level += 1
-    result = transpilation_function(node)
+    result = visitor(node)
     assert result is not None
     deep_level -= 1
     unparenthesised_node_types = ('float', 'function_call', 'integer', 'string', 'symbol')
@@ -126,10 +109,6 @@ def visit_comparaison(node):
         )
 
 
-def visit_variable_const(node):
-    return '{} = {}'.format(node['name'], node['value'])
-
-
 def visit_dans(node):
     return '{} {} {}'.format(
         visit_node(node['expression'], parenthesised=True),
@@ -147,21 +126,9 @@ def visit_float(node):
 
 
 def visit_formula(node):
-    # state['current_formula'] = []
     expression_source = visit_node(node['expression'])
-    # dependencies = set(map(
-    #     lambda node: sanitized_variable_name(node['value']),
-    #     iter_find_nodes(
-    #         node=node,
-    #         skip_type='loop_expression',  # visit_loop_expression will handle its dependencies.
-    #         type='symbol',
-    #         ),
-    #     ))
     formula_name = sanitized_variable_name(node['name'])
-    # state['formulas_dependencies'][formula_name] = dependencies
     source = '{} = {}'.format(formula_name, expression_source)
-    # state['formulas_sources'][formula_name] = source
-    # state['current_formula'] = None
     return (formula_name, source)
 
 
@@ -199,19 +166,6 @@ def visit_interval(node):
 
 
 def visit_loop_expression(node):
-    # def iter_unlooped_loop_expressions_nodes_and_dependencies():
-    #     for unlooped_node in iter_unlooped_nodes(
-    #             loop_variables_nodes=node['loop_variables'],
-    #             node=node['expression'],
-    #             ):
-    #         dependencies = set(map(
-    #             lambda node: sanitized_variable_name(node['value']),
-    #             iter_find_nodes(node=unlooped_node, type='symbol'),
-    #             ))
-    #         yield unlooped_node, dependencies
-
-    # unlooped_loop_expressions_nodes, dependencies = zip(*iter_unlooped_loop_expressions_nodes_and_dependencies())
-    # dependencies = reduce(or_, dependencies)
     unlooped_loop_expressions_nodes = iter_unlooped_nodes(
         loop_variables_nodes=node['loop_variables'],
         node=node['expression'],
@@ -219,7 +173,6 @@ def visit_loop_expression(node):
     source = '[{}]'.format(
         ', '.join(map(visit_node, unlooped_loop_expressions_nodes)),
         )
-    # state['current_formula'].append(dependencies)
     return source
 
 
@@ -235,10 +188,10 @@ def visit_loop_variable(node):
 
 def visit_pour_formula(node):
     return map(visit_node, iter_unlooped_nodes(
-            loop_variables_nodes=node['loop_variables'],
-            node=node['formula'],
-            unloop_keys=['name'],
-            ))
+        loop_variables_nodes=node['loop_variables'],
+        node=node['formula'],
+        unloop_keys=['name'],
+        ))
 
 
 def visit_product_expression(node):
@@ -246,7 +199,7 @@ def visit_product_expression(node):
 
 
 def visit_regle(node):
-    return map(
+    return mapcat(
         lambda node1: visit_node(node1) if node1['type'] == 'pour_formula' else [visit_node(node1)],
         node['formulas'],
         )
@@ -270,6 +223,5 @@ def visit_ternary_operator(node):
         )
 
 
-def visit_verif(node):
-    pass
-    # import ipdb; ipdb.set_trace()
+def visit_variable_const(node):
+    return '{} = {}'.format(node['name'], node['value'])

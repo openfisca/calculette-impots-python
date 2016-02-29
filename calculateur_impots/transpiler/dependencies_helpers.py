@@ -8,7 +8,9 @@ Dependencies helpers are functions dealing with enumerating formulas in the righ
 
 import logging
 
-from ..core import get_variable_type, mapcat
+from toolz import mapcat
+
+from ..core import get_variable_type
 
 
 log = logging.getLogger(__name__)

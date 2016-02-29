@@ -2,19 +2,11 @@
 
 
 import importlib
-import itertools
 
 from .formulas_helpers import *  # noqa
 
 
 saisies = None  # Global variable used by formulas, filled by `evaluate_formulas`
-
-
-# Functional helpers
-
-
-def mapcat(function, sequence):
-    return itertools.chain.from_iterable(map(function, sequence))
 
 
 # Core functions

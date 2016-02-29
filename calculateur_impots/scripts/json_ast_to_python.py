@@ -19,7 +19,8 @@ import pprint
 import sys
 import textwrap
 
-from calculateur_impots.core import mapcat
+from toolz.curried import concat, map, mapcat, pipe, valmap
+
 from calculateur_impots.transpiler import to_dependencies_visitors, to_python_source_visitors
 from calculateur_impots.transpiler.base import sanitized_variable_name
 from calculateur_impots.transpiler.dependencies_helpers import get_ordered_formulas_names
@@ -36,19 +37,7 @@ script_dir_path = os.path.dirname(os.path.abspath(__file__))
 generated_dir_path = os.path.abspath(os.path.join(script_dir_path, '..', 'generated'))
 
 
-# Python helpers
-
-list_ = list  # To use in ipdb since "list" is reserved to display the current source code.
-
-
 # Source code helper functions
-
-
-def get_formula_source(formula_source_by_name, formula_name):
-    return formula_source_by_name.get(
-        formula_name,
-        '{} = 0'.format(formula_name),
-        )
 
 
 def lines_to_python_source(sequence):
@@ -85,7 +74,7 @@ def iter_json_file_names(*pathnames):
                 pathnames,
                 )):
         json_file_name = os.path.basename(json_file_path)
-        if args.json is None or args.json == json_file_name:
+        if args.json is None or json_file_name in args.json:
             file_name_head = os.path.splitext(json_file_name)[0]
             yield json_file_name
 
@@ -97,9 +86,9 @@ def load_regles_file(json_file_name):
         lambda node: 'batch' in node['applications'],
         regles_nodes,
         ))
-    # dependencies = list(map(to_dependencies_visitors.visit_node, batch_application_regles_nodes))
-    formula_name_and_source_list = mapcat(to_python_source_visitors.visit_node, batch_application_regles_nodes)
-    return formula_name_and_source_list
+    formula_name_and_source_list = list(mapcat(to_python_source_visitors.visit_node, batch_application_regles_nodes))
+    formula_name_and_dependencies_list = list(mapcat(to_dependencies_visitors.visit_node, batch_application_regles_nodes))
+    return formula_name_and_source_list, formula_name_and_dependencies_list
 
 
 def load_tgvH_file():
@@ -125,7 +114,7 @@ def load_tgvH_file():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Display debug messages')
-    parser.add_argument('--json', help='Parse only this JSON file and exit')
+    parser.add_argument('--json', nargs='+', help='Parse only this JSON file and exit')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
     parser.add_argument('json_dir', help='Directory containing the JSON AST files')
     global args
@@ -139,9 +128,10 @@ def main():
         os.mkdir(generated_dir_path)
 
     if args.json is not None:
-        json_file_path = os.path.join(args.json_dir, args.json)
-        if not os.path.exists(json_file_path):
-            parser.error('JSON file "{}" does not exist.'.format(json_file_path))
+        for json_file_name in args.json:
+            json_file_path = os.path.join(args.json_dir, json_file_name)
+            if not os.path.exists(json_file_path):
+                parser.error('JSON file "{}" does not exist.'.format(json_file_path))
 
     # Transpile variables definitions (before regles)
     variable_definition_by_name = load_tgvH_file()
@@ -151,12 +141,22 @@ def main():
         )
 
     # Load regles
-    formula_source_by_name = dict(mapcat(
+
+    vals = list(map(
         load_regles_file,
         iter_json_file_names('chap-*.json', 'res-ser*.json'),
         ))
-    # import ipdb; ipdb.set_trace()
-    # formula_source_by_name = dict(mapcat())
+    formula_source_by_name, formula_dependencies_by_name = pipe(
+        zip(*vals),
+        map(concat),
+        map(dict),
+        )
+    formula_dependencies_by_name = valmap(list, formula_dependencies_by_name)
+
+    dependencies_file_path = os.path.join(generated_dir_path, 'dependencies.json')
+    with open(dependencies_file_path, 'w') as dependencies_file:
+        dependencies_file.write(json.dumps(formula_dependencies_by_name, indent=2))
+        log.info('Output file "{}" written with success'.format(dependencies_file_path))
 
     # Load verifs
     # for json_file_name in iter_json_file_names('coc*.json', 'coi*.json'):
@@ -180,7 +180,10 @@ def main():
                 'from .constants import *',
                 '\n',
                 ),
-            map(get_formula_source, ordered_formulas_names),
+            map(
+                lambda formula_name: formula_source_by_name.get(formula_name, '{} = 0'.format(formula_name)),
+                ordered_formulas_names,
+                ),
             )),
         )
 

@@ -10,7 +10,7 @@ They take a node containing a loop and return as many "unlooped" nodes as the nu
 import copy
 import itertools
 
-from ..core import mapcat
+from toolz import mapcat
 
 
 def enumeration_node_to_sequence(enumeration_node):
