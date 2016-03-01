@@ -23,6 +23,6 @@ setup(
     # license='http://www.fsf.org/licensing/licenses/agpl-3.0.html',
     # url='',
 
-    # install_requires=[],
+    install_requires=['toolz'],
     packages=find_packages(),
     )

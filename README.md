@@ -1,6 +1,17 @@
 # Calculateur Impôts en Python
 
-Ce projet utilise le langage Python 3.
+## Installation
+
+Le langage Python 3 est utilisé.
+
+```
+pip3 install --editable . --user
+```
+
+> L'option `--user` sert sur les systèmes GNU/Linux.
+
+Un utilisateur plus expérimenté en Python peut utiliser
+un [`virtualenv`](https://virtualenv.readthedocs.org/en/latest/) s'il le souhaite.
 
 ## Utilisation
 
