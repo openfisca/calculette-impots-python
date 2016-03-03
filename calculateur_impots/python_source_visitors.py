@@ -14,17 +14,21 @@ import logging
 import pprint
 import textwrap
 
+from m_language_parser.unloop_helpers import iter_unlooped_nodes
 from toolz import mapcat
 
-from ..core import get_variable_type
-from .base import get_visitor, sanitized_variable_name
-from .unloop_helpers import iter_unlooped_nodes
+from . import core
 
 
 log = logging.getLogger(__name__)
 
 
 # Helpers
+
+
+def sanitized_variable_name(value):
+    # Python variables must not begin with a digit.
+    return '_' + value if value[0].isdigit() else value
 
 
 def visit_infix_expression(node, operators={}):
@@ -52,8 +56,8 @@ deep_level = 0
 def visit_node(node, parenthesised=False):
     """Main visitor which calls the specific visitors below."""
     global deep_level
-    visitor = get_visitor(module_name=__name__, node=node)
     visitor_name = 'visit_' + node['type']
+    visitor = globals().get(visitor_name)
     if visitor is None:
         error_message = '"def {}(node):" is not defined, node = {}'.format(
             visitor_name,
@@ -127,42 +131,20 @@ def visit_float(node):
 
 def visit_formula(node):
     expression_source = visit_node(node['expression'])
-    formula_name = sanitized_variable_name(node['name'])
-    source = '{} = {}'.format(formula_name, expression_source)
-    return (formula_name, source)
+    sanitized_formula_name = sanitized_variable_name(node['name'])
+    source = '{} = {}'.format(sanitized_formula_name, expression_source)
+    return (sanitized_formula_name, source)
 
 
 def visit_function_call(node):
-    m_function_name = node['name']
-    python_function_name_by_m_function_name = {
-        'abs': 'abs',
-        'arr': 'round',
-        # 'inf': '',
-        'max': 'max',
-        'min': 'min',
-        'null': 'is_zero',
-        # 'positif_ou_nul': '',
-        'positif': 'is_positive',
-        # 'present': '',
-        'somme': 'sum',
-        }
-    # TODO When all functions will be handled, use this assertion.
-    # assert m_function_name in python_function_name_by_m_function_name, \
-    #     'Unknown M function name: "{}"'.format(m_function_name)
-    # python_function_name = python_function_name_by_m_function_name[m_function_name]
-    python_function_name = python_function_name_by_m_function_name.get(m_function_name, m_function_name)
     return '{name}({arguments})'.format(
         arguments=', '.join(map(visit_node, node['arguments'])),
-        name=python_function_name,
+        name=node['name'],
         )
 
 
 def visit_integer(node):
     return str(node['value'])
-
-
-def visit_interval(node):
-    return 'interval({}, {})'.format(node['first'], node['last'])
 
 
 def visit_loop_expression(node):
@@ -176,16 +158,6 @@ def visit_loop_expression(node):
     return source
 
 
-def visit_loop_variable(node):
-    return ' or '.join(
-        '{} in {}'.format(
-            node['name'],
-            visit_node(enumerations_node),
-            )
-        for enumerations_node in node['enumerations']
-        )
-
-
 def visit_pour_formula(node):
     return map(visit_node, iter_unlooped_nodes(
         loop_variables_nodes=node['loop_variables'],
@@ -195,7 +167,7 @@ def visit_pour_formula(node):
 
 
 def visit_product_expression(node):
-    return visit_infix_expression(node)
+    return visit_infix_expression(node, operators={'/': '|div|'})
 
 
 def visit_regle(node):
@@ -212,7 +184,7 @@ def visit_sum_expression(node):
 def visit_symbol(node):
     symbol = node['value']
     return 'saisies.get({!r}, 0)'.format(symbol) \
-        if get_variable_type(symbol) == 'variable_saisie' else sanitized_variable_name(symbol)
+        if core.get_variable_type(symbol) == 'variable_saisie' else sanitized_variable_name(symbol)
 
 
 def visit_ternary_operator(node):

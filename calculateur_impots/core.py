@@ -3,6 +3,8 @@
 
 import importlib
 
+from toolz import keyfilter
+
 from .formulas_helpers import *  # noqa
 
 
@@ -17,11 +19,17 @@ def evaluate_formulas(variables_saisies=None):
     Evaluate formulas and return results.
     Defer import of .generated.formulas module to inject `variables_saisies` in global variable.
     """
+    from .generated.variables_definitions import variable_definition_by_name
     if variables_saisies is None:
         variables_saisies = {}
     global saisies
     saisies = variables_saisies
-    importlib.import_module(name='.generated.formulas', package='calculateur_impots')
+    formulas_module = importlib.import_module(name='.generated.formulas', package='calculateur_impots')
+    variables_calculees = keyfilter(
+        lambda key: key in variable_definition_by_name,
+        formulas_module.__dict__,
+        )
+    return variables_calculees
 
 
 def get_variable_type(variable_name):

@@ -8,6 +8,7 @@ import os
 import sys
 
 from calculateur_impots import core
+from toolz import keyfilter
 
 
 # Globals
@@ -20,47 +21,52 @@ log = logging.getLogger(script_name)
 script_dir_name = os.path.dirname(os.path.abspath(__file__))
 
 
-def iter_variables_calculees(variables):
-    for variable_name, value in iter_name_and_value(variables):
-        if value is None:
-            variable_definition = core.find_definition(variable_name)
-            assert variable_definition['type'] == 'variable_calculee', \
-                'Calculation requested for variable "{}" but type != "variable_calculee"'.format(variable_name)
-            yield variable_name
+def iter_variables_calculees(variables_names):
+    for variable_name in variables_names:
+        variable_type = core.get_variable_type(variable_name)
+        if variable_type != 'variable_calculee':
+            parser.error('Variable "{}" is not a variable calculee'.format(variable_name))
+        yield variable_name
 
 
 def iter_variables_saisies(values):
-    for variable_name, value in map(lambda value: value.split('=', 1), values):
-        variable_definition = core.find_definition(variable_name)
-        assert variable_definition['type'] == 'variable_saisie', \
-            'Value provided for variable "{}" but type != "variable_saisie"'.format(variable_name)
-        yield variable_name, value
+    for value, words in map(lambda value: (value, value.strip('=').split('=', 1)), values):
+        if len(words) == 1:
+            parser.error('Missing value for variable saisie: "{}"'.format(value))
+        elif len(words) > 2:
+            parser.error('Invalid syntax for variable saisie: "{}"'.format(value))
+        variable_name, variable_value = words
+        try:
+            variable_value = float(variable_value)
+        except ValueError:
+            parser.error('Variable "{}" value is not a float'.format(value))
+        variable_type = core.get_variable_type(variable_name)
+        if variable_type != 'variable_saisie':
+            parser.error('Variable "{}" is not a variable saisie'.format(variable_name))
+        yield variable_name, variable_value
 
 
 def main():
+    global args, parser
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Display debug messages')
-    parser.add_argument('--calculee', dest='calculees', default='IINET', metavar='variable', nargs='+',
-                        help='Variables calculées')
-    parser.add_argument('--saisie', dest='saisies', metavar='variable', nargs='+', help='Variables saisies')
-    global args
+    parser.add_argument('calculees', default=['IINET'], metavar='variable', nargs='*', help='Variables calculées')
+    parser.add_argument('--saisie', dest='saisies', metavar='nom=valeur', nargs='+', help='Variables saisies')
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose or args.debug else logging.WARNING, stream=sys.stdout)
 
-    variables_saisies = {variable_name: value for variable_name, value in iter_variables_saisies(args.saisies)} \
+    variables_saisies = dict(iter_variables_saisies(args.saisies)) \
         if args.saisies is not None \
         else None
-
+    log.debug('variables_saisies: {}'.format(variables_saisies))
     core.evaluate_formulas(variables_saisies=variables_saisies)
-
-    calculees = [variable_name for variable_name in iter_variables_calculees(args.calculees)]
-    print(calculees)
-    # result = {
-    #     variable_name: simulation.calculate(variable_name)
-    #     for variable_name in variables_calculees
-    #     }
-    # print(result)
+    requested_variables_calculees = list(iter_variables_calculees(args.calculees))
+    variables_calculees = core.evaluate_formulas(variables_saisies=variables_saisies)
+    print(keyfilter(
+        lambda key: key in requested_variables_calculees,
+        variables_calculees,
+        ))
 
     return 0
 

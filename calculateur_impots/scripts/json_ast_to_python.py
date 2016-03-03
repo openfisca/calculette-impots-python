@@ -19,11 +19,9 @@ import pprint
 import sys
 import textwrap
 
-from toolz.curried import concat, map, mapcat, pipe, valmap
+from toolz.curried import concat, filter, map, mapcat, pipe, sorted, valmap
 
-from calculateur_impots.transpiler import to_dependencies_visitors, to_python_source_visitors
-from calculateur_impots.transpiler.base import sanitized_variable_name
-from calculateur_impots.transpiler.dependencies_helpers import get_ordered_formulas_names
+from calculateur_impots import python_source_visitors
 
 
 # Globals
@@ -45,12 +43,16 @@ def lines_to_python_source(sequence):
 
 
 def read_ast_json_file(json_file_name):
+    nodes = read_json_file(os.path.join('ast', json_file_name))
+    assert isinstance(nodes, list)
+    return nodes
+
+
+def read_json_file(json_file_name):
     json_file_path = os.path.join(args.json_dir, json_file_name)
     with open(json_file_path) as json_file:
         json_str = json_file.read()
-    nodes = json.loads(json_str)
-    assert isinstance(nodes, list)
-    return nodes
+    return json.loads(json_str)
 
 
 def write_source_file(file_name, source):
@@ -68,9 +70,9 @@ def write_source_file(file_name, source):
 # Load files functions
 
 
-def iter_json_file_names(*pathnames):
+def iter_ast_json_file_names(*pathnames):
     for json_file_path in sorted(mapcat(
-                lambda pathname: glob.iglob(os.path.join(args.json_dir, pathname)),
+                lambda pathname: glob.iglob(os.path.join(args.json_dir, 'ast', pathname)),
                 pathnames,
                 )):
         json_file_name = os.path.basename(json_file_path)
@@ -82,25 +84,12 @@ def iter_json_file_names(*pathnames):
 def load_regles_file(json_file_name):
     log.info('Loading "{}"...'.format(json_file_name))
     regles_nodes = read_ast_json_file(json_file_name)
-    batch_application_regles_nodes = list(filter(
+    batch_application_regles_nodes = filter(
         lambda node: 'batch' in node['applications'],
         regles_nodes,
-        ))
-    formula_name_and_source_list = list(mapcat(to_python_source_visitors.visit_node, batch_application_regles_nodes))
-    formula_name_and_dependencies_list = list(mapcat(to_dependencies_visitors.visit_node, batch_application_regles_nodes))
-    return formula_name_and_source_list, formula_name_and_dependencies_list
-
-
-def load_tgvH_file():
-    json_file_name = 'tgvH.json'
-    log.info('Loading "{}"...'.format(json_file_name))
-    nodes = read_ast_json_file(json_file_name)
-    variable_definition_by_name = {
-        sanitized_variable_name(node['name']): node
-        for node in nodes
-        if node['type'].startswith('variable_')
-        }
-    return variable_definition_by_name
+        )
+    formula_name_and_source_pairs = mapcat(python_source_visitors.visit_node, batch_application_regles_nodes)
+    return formula_name_and_source_pairs
 
 
 # def load_verifs_file(json_file_name):
@@ -116,7 +105,7 @@ def main():
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Display debug messages')
     parser.add_argument('--json', nargs='+', help='Parse only this JSON file and exit')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
-    parser.add_argument('json_dir', help='Directory containing the JSON AST files')
+    parser.add_argument('json_dir', help='Directory containing the JSON AST files and semantic data')
     global args
     args = parser.parse_args()
     logging.basicConfig(
@@ -129,49 +118,48 @@ def main():
 
     if args.json is not None:
         for json_file_name in args.json:
-            json_file_path = os.path.join(args.json_dir, json_file_name)
+            json_file_path = os.path.join(args.json_dir, 'ast', json_file_name)
             if not os.path.exists(json_file_path):
                 parser.error('JSON file "{}" does not exist.'.format(json_file_path))
 
-    # Transpile variables definitions (before regles)
-    variable_definition_by_name = load_tgvH_file()
+    # Transpile constants
+
+    constants_file_name = os.path.join('semantic_data', 'constants.json')
+    constants = read_json_file(json_file_name=constants_file_name)
+    constants_source = pipe(
+        constants.items(),
+        sorted,
+        map(lambda item: '{} = {}'.format(*item)),
+        lines_to_python_source,
+        )
+    write_source_file(
+        file_name='constants.py',
+        source=constants_source,
+        )
+
+    # Transpile variables definitions
+
+    variables_definitions_file_name = os.path.join('semantic_data', 'variables_definitions.json')
+    variable_definition_by_name = read_json_file(json_file_name=variables_definitions_file_name)
     write_source_file(
         file_name='variables_definitions.py',
         source='variable_definition_by_name = {}\n'.format(pprint.pformat(variable_definition_by_name, width=120)),
         )
 
-    # Load regles
+    # Transpile formulas
 
-    vals = list(map(
+    formula_source_by_name = dict(list(mapcat(
         load_regles_file,
-        iter_json_file_names('chap-*.json', 'res-ser*.json'),
-        ))
-    formula_source_by_name, formula_dependencies_by_name = pipe(
-        zip(*vals),
-        map(concat),
-        map(dict),
-        )
-    formula_dependencies_by_name = valmap(list, formula_dependencies_by_name)
+        iter_ast_json_file_names('chap-*.json', 'res-ser*.json'),
+        )))
+    assert formula_source_by_name
 
-    dependencies_file_path = os.path.join(generated_dir_path, 'dependencies.json')
-    with open(dependencies_file_path, 'w') as dependencies_file:
-        dependencies_file.write(json.dumps(formula_dependencies_by_name, indent=2))
-        log.info('Output file "{}" written with success'.format(dependencies_file_path))
+    variables_dependencies_file_name = os.path.join('semantic_data', 'variables_dependencies.json')
+    variable_dependencies_by_name = read_json_file(json_file_name=variables_dependencies_file_name)
 
-    # Load verifs
-    # for json_file_name in iter_json_file_names('coc*.json', 'coi*.json'):
-        # load_verifs_file(json_file_name)
+    ordered_formulas_names_file_name = os.path.join('semantic_data', 'ordered_formulas.json')
+    ordered_formulas_names = read_json_file(json_file_name=ordered_formulas_names_file_name)
 
-    # Output transpiled sources to Python file.
-    variables_const = list(filter(lambda v: v['type'] == 'variable_const', variable_definition_by_name.values()))
-    ordered_formulas_names = get_ordered_formulas_names(formula_dependencies_by_name)
-    write_source_file(
-        file_name='constants.py',
-        source=lines_to_python_source(map(
-            to_python_source_visitors.visit_node,
-            sorted(variables_const, key=itemgetter('name')),
-            )),
-        )
     write_source_file(
         file_name='formulas.py',
         source=lines_to_python_source(itertools.chain(
@@ -180,12 +168,16 @@ def main():
                 'from .constants import *',
                 '\n',
                 ),
-            map(
-                lambda formula_name: formula_source_by_name.get(formula_name, '{} = 0'.format(formula_name)),
+            pipe(
                 ordered_formulas_names,
+                map(python_source_visitors.sanitized_variable_name),
+                map(lambda formula_name: formula_source_by_name.get(formula_name, '{} = 0'.format(formula_name))),
                 ),
-            )),
-        )
+            ),
+        ))
+
+    # for json_file_name in iter_ast_json_file_names('coc*.json', 'coi*.json'):
+        # load_verifs_file(json_file_name)
 
     return 0
 
