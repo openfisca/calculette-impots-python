@@ -167,7 +167,7 @@ def visit_pour_formula(node):
 
 
 def visit_product_expression(node):
-    return visit_infix_expression(node, operators={'/': '|div|'})
+    return visit_infix_expression(node)
 
 
 def visit_regle(node):
@@ -197,3 +197,16 @@ def visit_ternary_operator(node):
 
 def visit_variable_const(node):
     return '{} = {}'.format(node['name'], node['value'])
+
+
+def visit_verif(node):
+    return '# verif {name}\n{assertions}\n'.format(
+        assertions='\n'.join(
+            'assert {expression}, get_error({error_name!r})'.format(
+                error_name=condition_node['error_name'],
+                expression=visit_node(condition_node['expression']),
+                )
+            for condition_node in node['conditions']
+            ),
+        name=node['name'],
+        )

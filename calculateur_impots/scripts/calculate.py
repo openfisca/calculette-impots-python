@@ -7,8 +7,11 @@ import logging
 import os
 import sys
 
-from calculateur_impots import core
 from toolz import keyfilter
+
+# Note: absolute notation is used here since we are in a script.
+from calculateur_impots import core
+from calculateur_impots.generated.verif_regles import verif_regles
 
 
 # Globals
@@ -56,9 +59,14 @@ def main():
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose or args.debug else logging.WARNING, stream=sys.stdout)
 
+    # Required variables_saisies: ANREV, REGCO (tag "contexte"?)
+    # Set V_IND_TRAIT to "primitif" (value 0?)
+
     variables_saisies = dict(iter_variables_saisies(args.saisies)) \
         if args.saisies is not None \
-        else None
+        else {}
+    verif_regles(variables_saisies)
+
     log.debug('variables_saisies: {}'.format(variables_saisies))
     core.evaluate_formulas(variables_saisies=variables_saisies)
     requested_variables_calculees = list(iter_variables_calculees(args.calculees))

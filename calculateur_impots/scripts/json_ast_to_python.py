@@ -70,11 +70,14 @@ def write_source_file(file_name, source):
 # Load files functions
 
 
-def iter_ast_json_file_names(*pathnames):
-    for json_file_path in sorted(mapcat(
-                lambda pathname: glob.iglob(os.path.join(args.json_dir, 'ast', pathname)),
-                pathnames,
-                )):
+def iter_ast_json_file_names(pathnames, excluded_pathnames=None):
+    json_file_paths = pipe(
+        pathnames,
+        mapcat(lambda pathname: glob.iglob(os.path.join(args.json_dir, 'ast', pathname))),
+        filter(lambda file_path: excluded_pathnames is None or os.path.basename(file_path) not in excluded_pathnames),
+        sorted,
+        )
+    for json_file_path in json_file_paths:
         json_file_name = os.path.basename(json_file_path)
         if args.json is None or json_file_name in args.json:
             file_name_head = os.path.splitext(json_file_name)[0]
@@ -92,9 +95,15 @@ def load_regles_file(json_file_name):
     return formula_name_and_source_pairs
 
 
-# def load_verifs_file(json_file_name):
-#     log.info('Loading "{}"...'.format(json_file_name))
-#     verifs_nodes = read_ast_json_file(json_file_name)
+def load_verifs_file(json_file_name):
+    log.info('Loading "{}"...'.format(json_file_name))
+    verifs_nodes = read_ast_json_file(json_file_name)
+    batch_application_verifs_nodes = filter(
+        lambda node: 'batch' in node['applications'],
+        verifs_nodes,
+        )
+    verif_functions_sources = map(python_source_visitors.visit_node, batch_application_verifs_nodes)
+    return verif_functions_sources
 
 
 # Main
@@ -146,38 +155,73 @@ def main():
         source='variable_definition_by_name = {}\n'.format(pprint.pformat(variable_definition_by_name, width=120)),
         )
 
+    # Transpile initial formulas
+
+    initial_formula_source_by_name = dict(list(mapcat(
+        load_regles_file,
+        iter_ast_json_file_names(pathnames=['chap-ini.json']),
+        )))
+    ordered_formulas_names_file_name = os.path.join('semantic_data', 'ordered_formulas.json')
+    ordered_formulas_names = list(map(
+        python_source_visitors.sanitized_variable_name,
+        read_json_file(json_file_name=ordered_formulas_names_file_name),
+        ))
+    if initial_formula_source_by_name:
+        write_source_file(
+            file_name='initial_formulas.py',
+            source=lines_to_python_source(itertools.chain(
+                (
+                    'from ..core import *',
+                    'from .constants import *',
+                    '\n',
+                    ),
+                pipe(
+                    ordered_formulas_names,
+                    filter(lambda formula_name: formula_name in initial_formula_source_by_name),
+                    map(lambda formula_name: initial_formula_source_by_name[formula_name]),
+                    ),
+                ),
+            ))
+
     # Transpile formulas
 
     formula_source_by_name = dict(list(mapcat(
         load_regles_file,
-        iter_ast_json_file_names('chap-*.json', 'res-ser*.json'),
-        )))
-    assert formula_source_by_name
-
-    variables_dependencies_file_name = os.path.join('semantic_data', 'variables_dependencies.json')
-    variable_dependencies_by_name = read_json_file(json_file_name=variables_dependencies_file_name)
-
-    ordered_formulas_names_file_name = os.path.join('semantic_data', 'ordered_formulas.json')
-    ordered_formulas_names = read_json_file(json_file_name=ordered_formulas_names_file_name)
-
-    write_source_file(
-        file_name='formulas.py',
-        source=lines_to_python_source(itertools.chain(
-            (
-                'from ..core import *',
-                'from .constants import *',
-                '\n',
-                ),
-            pipe(
-                ordered_formulas_names,
-                map(python_source_visitors.sanitized_variable_name),
-                map(lambda formula_name: formula_source_by_name.get(formula_name, '{} = 0'.format(formula_name))),
-                ),
+        iter_ast_json_file_names(
+            excluded_pathnames=['chap-ini.json'],
+            pathnames=['chap-*.json', 'res-ser*.json'],
             ),
-        ))
+        )))
+    if formula_source_by_name:
+        ordered_formulas_names_file_name = os.path.join('semantic_data', 'ordered_formulas.json')
+        ordered_formulas_names = read_json_file(json_file_name=ordered_formulas_names_file_name)
+        write_source_file(
+            file_name='formulas.py',
+            source=lines_to_python_source(itertools.chain(
+                (
+                    'from ..core import *',
+                    'from .constants import *',
+                    '\n',
+                    ),
+                pipe(
+                    ordered_formulas_names,
+                    filter(lambda formula_name: formula_name not in initial_formula_source_by_name),
+                    map(lambda formula_name: formula_source_by_name.get(formula_name, '{} = 0'.format(formula_name))),
+                    ),
+                ),
+            ))
 
-    # for json_file_name in iter_ast_json_file_names('coc*.json', 'coi*.json'):
-        # load_verifs_file(json_file_name)
+    verif_functions_sources = list(
+        mapcat(load_verifs_file, iter_ast_json_file_names(pathnames=['coc*.json', 'coi*.json']))
+        )
+    if verif_functions_sources:
+        verif_regles_source = 'def verif_regles(saisies):\n{}'.format(
+            textwrap.indent(lines_to_python_source(verif_functions_sources), prefix=4 * ' '),
+            )
+        write_source_file(
+            file_name='verif_regles.py',
+            source=verif_regles_source,
+            )
 
     return 0
 
