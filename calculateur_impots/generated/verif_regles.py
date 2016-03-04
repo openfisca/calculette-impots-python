@@ -127,7 +127,7 @@ def verif_regles(saisies):
     assert positif(saisies.get('COD8XK', 0) + 0) == 1 and saisies.get('V_REGCO', 0) + 0 != 3, get_error('A077')
 
     # verif 78
-    assert positif(saisies.get('COD8YK', 0) + 0) == 1 and (saisies.get('V_REGCO', 0) + 0) in [{'type': 'enumeration_values', 'values': [2, 3, 4]}], get_error('A078')
+    assert positif(saisies.get('COD8YK', 0) + 0) == 1 and (saisies.get('V_REGCO', 0) + 0) in (2, 3, 4), get_error('A078')
 
     # verif 79
     assert positif_ou_nul(saisies.get('BRAS', 0)) == 1 and V_CNR2 + 0 != 1, get_error('A079')
@@ -136,7 +136,7 @@ def verif_regles(saisies):
     assert saisies.get('V_NOTRAIT', 0) + 0 < 20 and present(saisies.get('BRAS', 0)) == 1 and saisies.get('V_REGCO', 0) + 0 != 2 and V_CNR2 + 0 == 1 or saisies.get('V_NOTRAIT', 0) >= 20 and positif(saisies.get('BRAS', 0)) == 1 and saisies.get('V_REGCO', 0) + 0 != 2 and V_CNR2 + 0 == 1, get_error('A080')
 
     # verif 4050
-    assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_IND_TRAIT', 0) > 0 and saisies.get('VALREGCO', 0) not in [{'type': 'enumeration_values', 'values': [1, 2, 4]}], get_error('A082')
+    assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_IND_TRAIT', 0) > 0 and saisies.get('VALREGCO', 0) not in (1, 2, 4), get_error('A082')
 
     # verif 4060
     assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_NOTRAIT', 0) + 0 == 10 and saisies.get('VALREGCO', 0) == 2 or saisies.get('VALREGCO', 0) == 4 and V_CNR2 + 0 != 1, get_error('A083')
@@ -169,13 +169,13 @@ def verif_regles(saisies):
     assert saisies.get('V_NOTRAIT', 0) + 0 < 20 and present(saisies.get('RMOND', 0)) == 1 and present(saisies.get('DMOND', 0)) == 1 or saisies.get('V_NOTRAIT', 0) >= 20 and positif(saisies.get('RMOND', 0)) == 1 and positif(saisies.get('DMOND', 0)) == 1, get_error('A093')
 
     # verif 4020
-    assert saisies.get('V_IND_TRAIT', 0) + 0 > 0 and (saisies.get('V_REGCO', 0) + 0) in [{'type': 'enumeration_values', 'values': [1, 2, 3, 5, 6, 7]}] and positif(saisies.get('IPVLOC', 0) + 0) == 1, get_error('A094')
+    assert saisies.get('V_IND_TRAIT', 0) + 0 > 0 and (saisies.get('V_REGCO', 0) + 0) in (1, 2, 3, 5, 6, 7) and positif(saisies.get('IPVLOC', 0) + 0) == 1, get_error('A094')
 
     # verif 95
     assert saisies.get('V_REGCO', 0) + 0 == 4 and saisies.get('IPVLOC', 0) + 0 == 0 and saisies.get('V_IND_TRAIT', 0) + 0 == 4 and saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + saisies.get('V_0AC', 0) + saisies.get('V_0AD', 0) + saisies.get('V_0AV', 0) + 0 != 0 or saisies.get('V_IND_TRAIT', 0) + 0 == 5 and positif(saisies.get('ANNUL2042', 0) + 0) == 0, get_error('A095')
 
     # verif 96
-    assert saisies.get('V_REGCO', 0) in [{'type': 'enumeration_values', 'values': [2, 3, 4]}] and saisies.get('V_IND_TRAIT', 0) == 4 and saisies.get('BASRET', 0) >= 0 and saisies.get('IMPRET', 0) >= 0 or saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('BASRET', 0) > 0 and saisies.get('IMPRET', 0) > 0, get_error('A096')
+    assert saisies.get('V_REGCO', 0) in (2, 3, 4) and saisies.get('V_IND_TRAIT', 0) == 4 and saisies.get('BASRET', 0) >= 0 and saisies.get('IMPRET', 0) >= 0 or saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('BASRET', 0) > 0 and saisies.get('IMPRET', 0) > 0, get_error('A096')
 
     # verif 97
     assert present(saisies.get('PERPIMPATRIE', 0)) == 1 and V_CNR == 1 and saisies.get('V_REGCO', 0) == 2 or saisies.get('V_REGCO', 0) == 4, get_error('A097')
@@ -313,7 +313,7 @@ def verif_regles(saisies):
     assert saisies.get('V_IND_TRAIT', 0) == 4 and positif(saisies.get('REAMOR', 0)) + present(saisies.get('REAMORNB', 0)) == 1 or saisies.get('V_IND_TRAIT', 0) == 5 and positif(saisies.get('REAMOR', 0)) + positif(saisies.get('REAMORNB', 0)) == 1, get_error('A42602')
 
     # verif 534
-    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and positif_ou_nul(NAPT) == 0 and (saisies.get('V_BTNATIMP', 0) + 0) in [{'type': 'enumeration_values', 'values': [1, 11, 71, 81]}] and positif(saisies.get('V_FORVA', 0) + 0) == 1 or positif(saisies.get('V_FORCA', 0) + 0) == 1 or positif(saisies.get('V_FORPA', 0) + 0) == 1, get_error('A534')
+    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and positif_ou_nul(NAPT) == 0 and (saisies.get('V_BTNATIMP', 0) + 0) in (1, 11, 71, 81) and positif(saisies.get('V_FORVA', 0) + 0) == 1 or positif(saisies.get('V_FORCA', 0) + 0) == 1 or positif(saisies.get('V_FORPA', 0) + 0) == 1, get_error('A534')
 
     # verif 538
     assert saisies.get('RCSV', 0) > 0 and SOMMEA538VB == 0 or saisies.get('RCSC', 0) > 0 and SOMMEA538CB == 0 or saisies.get('RCSP', 0) > 0 and SOMMEA538PB == 0, get_error('A538')
@@ -334,7 +334,7 @@ def verif_regles(saisies):
     assert saisies.get('APPLI_OCEANS', 0) == 0 and positif(saisies.get('PERPIMPATRIE', 0) + 0) != 1 and positif(saisies.get('V_CALCULIR', 0) + 0) == 0 and saisies.get('V_REGCO', 0) + 0 != 2 and saisies.get('V_REGCO', 0) + 0 != 4 and positif_ou_nul(saisies.get('PLAF_PERPV', 0)) == 1 and present(saisies.get('PERPPLAFCV', 0)) == 0 and present(saisies.get('PERPPLAFNUV1', 0)) == 0 and present(saisies.get('PERPPLAFNUV2', 0)) == 0 and present(saisies.get('PERPPLAFNUV3', 0)) == 0 or positif_ou_nul(saisies.get('PLAF_PERPC', 0)) == 1 and present(saisies.get('PERPPLAFCC', 0)) == 0 and present(saisies.get('PERPPLAFNUC1', 0)) == 0 and present(saisies.get('PERPPLAFNUC2', 0)) == 0 and present(saisies.get('PERPPLAFNUC3', 0)) == 0 or positif_ou_nul(saisies.get('PLAF_PERPP', 0)) == 1 and present(saisies.get('PERPPLAFCP', 0)) == 0 and present(saisies.get('PERPPLAFNUP1', 0)) == 0 and present(saisies.get('PERPPLAFNUP2', 0)) == 0 and present(saisies.get('PERPPLAFNUP3', 0)) == 0 or positif_ou_nul(saisies.get('PLAF_PERPV', 0)) == 1 and saisies.get('PERPPLAFCV', 0) + saisies.get('PERPPLAFNUV1', 0) + saisies.get('PERPPLAFNUV2', 0) + saisies.get('PERPPLAFNUV3', 0) == saisies.get('V_BTPERPV', 0) + saisies.get('V_BTPERPNUV1', 0) + saisies.get('V_BTPERPNUV2', 0) + saisies.get('V_BTPERPNUV3', 0) or positif_ou_nul(saisies.get('PLAF_PERPC', 0)) == 1 and saisies.get('PERPPLAFCC', 0) + saisies.get('PERPPLAFNUC1', 0) + saisies.get('PERPPLAFNUC2', 0) + saisies.get('PERPPLAFNUC3', 0) == saisies.get('V_BTPERPC', 0) + saisies.get('V_BTPERPNUC1', 0) + saisies.get('V_BTPERPNUC2', 0) + saisies.get('V_BTPERPNUC3', 0) or positif_ou_nul(saisies.get('PLAF_PERPP', 0)) == 1 and saisies.get('PERPPLAFCP', 0) + saisies.get('PERPPLAFNUP1', 0) + saisies.get('PERPPLAFNUP2', 0) + saisies.get('PERPPLAFNUP3', 0) == saisies.get('V_BTPERPP', 0) + saisies.get('V_BTPERPNUP1', 0) + saisies.get('V_BTPERPNUP2', 0) + saisies.get('V_BTPERPNUP3', 0), get_error('A603')
 
     # verif 604
-    assert saisies.get('APPLI_OCEANS', 0) == 0 and positif(saisies.get('PERPMUTU', 0)) == 1 and saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) == 1 and (saisies.get('V_REGCO', 0) + 0) in [{'type': 'enumeration_values', 'values': [1, 3, 5, 6, 7]}] and positif(saisies.get('PERPIMPATRIE', 0) + 0) == 0 and present(saisies.get('PERPPLAFCV', 0)) == 0 or present(saisies.get('PERPPLAFNUV1', 0)) == 0 or present(saisies.get('PERPPLAFNUV2', 0)) == 0 or present(saisies.get('PERPPLAFNUV3', 0)) == 0 or present(saisies.get('PERPPLAFCC', 0)) == 0 or present(saisies.get('PERPPLAFNUC1', 0)) == 0 or present(saisies.get('PERPPLAFNUC2', 0)) == 0 or present(saisies.get('PERPPLAFNUC3', 0)) == 0, get_error('A604')
+    assert saisies.get('APPLI_OCEANS', 0) == 0 and positif(saisies.get('PERPMUTU', 0)) == 1 and saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) == 1 and (saisies.get('V_REGCO', 0) + 0) in (1, 3, 5, 6, 7) and positif(saisies.get('PERPIMPATRIE', 0) + 0) == 0 and present(saisies.get('PERPPLAFCV', 0)) == 0 or present(saisies.get('PERPPLAFNUV1', 0)) == 0 or present(saisies.get('PERPPLAFNUV2', 0)) == 0 or present(saisies.get('PERPPLAFNUV3', 0)) == 0 or present(saisies.get('PERPPLAFCC', 0)) == 0 or present(saisies.get('PERPPLAFNUC1', 0)) == 0 or present(saisies.get('PERPPLAFNUC2', 0)) == 0 or present(saisies.get('PERPPLAFNUC3', 0)) == 0, get_error('A604')
 
     # verif 6051
     assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_IND_TRAIT', 0) > 0 and saisies.get('PERPV', 0) + 0 < saisies.get('EXOCETV', 0) + 0 and positif(saisies.get('EXOCETV', 0) + 0) == 1, get_error('A60501')
@@ -346,7 +346,7 @@ def verif_regles(saisies):
     assert saisies.get('RDCOM', 0) > 0 and SOMMEA700 == 0, get_error('A700')
 
     # verif 702
-    assert (saisies.get('V_REGCO', 0) + 0) in [{'type': 'enumeration_values', 'values': [1, 3, 5, 6, 7]}] and saisies.get('INTDIFAGRI', 0) * positif(saisies.get('INTDIFAGRI', 0)) + 0 > saisies.get('RCMHAB', 0) * positif(saisies.get('RCMHAB', 0)) + saisies.get('COD2FA', 0) * positif(saisies.get('COD2FA', 0)) + 0, get_error('A702')
+    assert (saisies.get('V_REGCO', 0) + 0) in (1, 3, 5, 6, 7) and saisies.get('INTDIFAGRI', 0) * positif(saisies.get('INTDIFAGRI', 0)) + 0 > saisies.get('RCMHAB', 0) * positif(saisies.get('RCMHAB', 0)) + saisies.get('COD2FA', 0) * positif(saisies.get('COD2FA', 0)) + 0, get_error('A702')
 
     # verif 703
     assert positif(saisies.get('PRETUD', 0) + 0) == 1 or positif(saisies.get('PRETUDANT', 0) + 0) == 1 and saisies.get('V_0DA', 0) < 1979 and positif(BOOL_0AM + 0) == 0 or positif(saisies.get('PRETUD', 0) + 0) == 1 or positif(saisies.get('PRETUDANT', 0) + 0) == 1 and positif(BOOL_0AM + 0) == 1 and saisies.get('V_0DA', 0) < 1979 and saisies.get('V_0DB', 0) < 1979, get_error('A703')
@@ -709,13 +709,13 @@ def verif_regles(saisies):
     assert saisies.get('CRERESTAU', 0) > 0 and SOMMEA899 == 0, get_error('A899')
 
     # verif 9611
-    assert saisies.get('CMAJ', 0) != 7 and APPLI_BATCH == 1 and saisies.get('APPLI_COLBERT', 0) == 0 or saisies.get('APPLI_OCEANS', 0) == 1 or APPLI_ILIAD == 1 and non(saisies.get('V_CALCULIR', 0) + 0 == 1 or (saisies.get('V_NOTRAIT', 0) + 0) in [{'type': 'enumeration_values', 'values': [16, 23, 26, 33, 36, 43, 46, 53, 56]}]) or saisies.get('CMAJ2', 0) != 7 and saisies.get('CMAJ2', 0) != 0 and APPLI_BATCH == 1 and saisies.get('APPLI_COLBERT', 0) == 0 or saisies.get('APPLI_OCEANS', 0) == 1 or APPLI_ILIAD == 1 and non(saisies.get('V_CALCULIR', 0) + 0 == 1 or (saisies.get('V_NOTRAIT', 0) + 0) in [{'type': 'enumeration_values', 'values': [16, 23, 26, 33, 36, 43, 46, 53, 56]}]), get_error('A96101')
+    assert saisies.get('CMAJ', 0) != 7 and APPLI_BATCH == 1 and saisies.get('APPLI_COLBERT', 0) == 0 or saisies.get('APPLI_OCEANS', 0) == 1 or APPLI_ILIAD == 1 and non(saisies.get('V_CALCULIR', 0) + 0 == 1 or (saisies.get('V_NOTRAIT', 0) + 0) in (16, 23, 26, 33, 36, 43, 46, 53, 56)) or saisies.get('CMAJ2', 0) != 7 and saisies.get('CMAJ2', 0) != 0 and APPLI_BATCH == 1 and saisies.get('APPLI_COLBERT', 0) == 0 or saisies.get('APPLI_OCEANS', 0) == 1 or APPLI_ILIAD == 1 and non(saisies.get('V_CALCULIR', 0) + 0 == 1 or (saisies.get('V_NOTRAIT', 0) + 0) in (16, 23, 26, 33, 36, 43, 46, 53, 56)), get_error('A96101')
 
     # verif 9612
-    assert saisies.get('CMAJ', 0) not in [{'first': '7', 'type': 'interval', 'last': '8'}] and saisies.get('CMAJ', 0) not in [{'first': '10', 'type': 'interval', 'last': '11'}] and saisies.get('CMAJ', 0) not in [{'first': '17', 'type': 'interval', 'last': '18'}] and APPLI_ILIAD == 1 and saisies.get('V_CALCULIR', 0) + 0 == 1 or (saisies.get('V_NOTRAIT', 0) + 0) in [{'type': 'enumeration_values', 'values': [16, 23, 26, 33, 36, 43, 46, 53, 56]}] or saisies.get('APPLI_COLBERT', 0) == 1 or saisies.get('CMAJ2', 0) not in [{'first': '7', 'type': 'interval', 'last': '8'}] and saisies.get('CMAJ2', 0) not in [{'first': '10', 'type': 'interval', 'last': '11'}] and saisies.get('CMAJ2', 0) not in [{'first': '17', 'type': 'interval', 'last': '18'}] and saisies.get('CMAJ2', 0) != 0 and APPLI_ILIAD == 1 and saisies.get('V_CALCULIR', 0) + 0 == 1 or (saisies.get('V_NOTRAIT', 0) + 0) in [{'type': 'enumeration_values', 'values': [16, 23, 26, 33, 36, 43, 46, 53, 56]}] or saisies.get('APPLI_COLBERT', 0) == 1, get_error('A96102')
+    assert saisies.get('CMAJ', 0) not in interval(7, 8) and saisies.get('CMAJ', 0) not in interval(10, 11) and saisies.get('CMAJ', 0) not in interval(17, 18) and APPLI_ILIAD == 1 and saisies.get('V_CALCULIR', 0) + 0 == 1 or (saisies.get('V_NOTRAIT', 0) + 0) in (16, 23, 26, 33, 36, 43, 46, 53, 56) or saisies.get('APPLI_COLBERT', 0) == 1 or saisies.get('CMAJ2', 0) not in interval(7, 8) and saisies.get('CMAJ2', 0) not in interval(10, 11) and saisies.get('CMAJ2', 0) not in interval(17, 18) and saisies.get('CMAJ2', 0) != 0 and APPLI_ILIAD == 1 and saisies.get('V_CALCULIR', 0) + 0 == 1 or (saisies.get('V_NOTRAIT', 0) + 0) in (16, 23, 26, 33, 36, 43, 46, 53, 56) or saisies.get('APPLI_COLBERT', 0) == 1, get_error('A96102')
 
     # verif 9613
-    assert saisies.get('CMAJ_ISF', 0) not in [{'type': 'enumeration_values', 'values': [7, 8, 17, 18, 34]}] and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or saisies.get('CMAJ_ISF', 0) not in [{'type': 'enumeration_values', 'values': [0, 7, 8, 17, 18, 34]}] and saisies.get('V_IND_TRAIT', 0) + 0 == 5, get_error('A96103')
+    assert saisies.get('CMAJ_ISF', 0) not in (7, 8, 17, 18, 34) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or saisies.get('CMAJ_ISF', 0) not in (0, 7, 8, 17, 18, 34) and saisies.get('V_IND_TRAIT', 0) + 0 == 5, get_error('A96103')
 
     # verif 9621
     assert present(saisies.get('CMAJ', 0)) == 1 and present(saisies.get('MOISAN', 0)) == 0 or present(saisies.get('CMAJ2', 0)) == 1 and present(saisies.get('MOISAN2', 0)) == 0, get_error('A96201')
@@ -730,13 +730,13 @@ def verif_regles(saisies):
     assert present(saisies.get('CMAJ_ISF', 0)) == 0 and present(saisies.get('MOISAN_ISF', 0)) == 1, get_error('A96204')
 
     # verif 9631
-    assert saisies.get('V_IND_TRAIT', 0) > 0 and inf(saisies.get('MOISAN', 0) / 10000) not in [{'first': '01', 'type': 'interval', 'last': '12'}] or inf(saisies.get('MOISAN2', 0) / 10000) not in [{'first': '00', 'type': 'interval', 'last': '12'}], get_error('A96301')
+    assert saisies.get('V_IND_TRAIT', 0) > 0 and inf(saisies.get('MOISAN', 0) / 10000) not in interval(01, 12) or inf(saisies.get('MOISAN2', 0) / 10000) not in interval(00, 12), get_error('A96301')
 
     # verif 7317
     assert saisies.get('APPLI_COLBERT', 0) == 1 and arr(saisies.get('MOISAN', 0) / 10000 - inf(saisies.get('MOISAN', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 1 and arr(saisies.get('MOISAN', 0) / 10000 - inf(saisies.get('MOISAN', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 2 and arr(saisies.get('MOISAN', 0) / 10000 - inf(saisies.get('MOISAN', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 3, get_error('A96302')
 
     # verif 9633
-    assert saisies.get('V_IND_TRAIT', 0) + 0 == 4 and inf(saisies.get('MOISAN_ISF', 0) / 10000) not in [{'first': '01', 'type': 'interval', 'last': '12'}] or saisies.get('V_IND_TRAIT', 0) + 0 == 5 and inf(saisies.get('MOISAN_ISF', 0) / 10000) not in [{'first': '01', 'type': 'interval', 'last': '12'}] and saisies.get('MOISAN_ISF', 0) != 0, get_error('A96303')
+    assert saisies.get('V_IND_TRAIT', 0) + 0 == 4 and inf(saisies.get('MOISAN_ISF', 0) / 10000) not in interval(01, 12) or saisies.get('V_IND_TRAIT', 0) + 0 == 5 and inf(saisies.get('MOISAN_ISF', 0) / 10000) not in interval(01, 12) and saisies.get('MOISAN_ISF', 0) != 0, get_error('A96303')
 
     # verif 9634
     assert saisies.get('APPLI_OCEANS', 0) == 0 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 1 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 2 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 3 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 4, get_error('A96304')
@@ -745,19 +745,19 @@ def verif_regles(saisies):
     assert saisies.get('APPLI_COLBERT', 0) == 1 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 1 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 2 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 3, get_error('A96304')
 
     # verif 9641
-    assert inf(saisies.get('DATDEPETR', 0) / 1000000) not in [{'first': '01', 'type': 'interval', 'last': '31'}] and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATDEPETR', 0) / 1000000) not in [{'first': '01', 'type': 'interval', 'last': '31'}] and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96401')
+    assert inf(saisies.get('DATDEPETR', 0) / 1000000) not in interval(01, 31) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATDEPETR', 0) / 1000000) not in interval(01, 31) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96401')
 
     # verif 9642
-    assert inf(saisies.get('DATDEPETR', 0) / 1000000 - inf(saisies.get('DATDEPETR', 0) / 1000000) * 100) not in [{'first': '01', 'type': 'interval', 'last': '12'}] and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATDEPETR', 0) / 1000000 - inf(saisies.get('DATDEPETR', 0) / 1000000) * 100) not in [{'first': '01', 'type': 'interval', 'last': '12'}] and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96402')
+    assert inf(saisies.get('DATDEPETR', 0) / 1000000 - inf(saisies.get('DATDEPETR', 0) / 1000000) * 100) not in interval(01, 12) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATDEPETR', 0) / 1000000 - inf(saisies.get('DATDEPETR', 0) / 1000000) * 100) not in interval(01, 12) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96402')
 
     # verif 9643
     assert arr(saisies.get('DATDEPETR', 0) / 10000 - inf(saisies.get('DATDEPETR', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or arr(saisies.get('DATDEPETR', 0) / 10000 - inf(saisies.get('DATDEPETR', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96403')
 
     # verif 9651
-    assert inf(saisies.get('DATRETETR', 0) / 1000000) not in [{'first': '01', 'type': 'interval', 'last': '31'}] and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATRETETR', 0) / 1000000) not in [{'first': '01', 'type': 'interval', 'last': '31'}] and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96501')
+    assert inf(saisies.get('DATRETETR', 0) / 1000000) not in interval(01, 31) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATRETETR', 0) / 1000000) not in interval(01, 31) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96501')
 
     # verif 9652
-    assert inf(saisies.get('DATRETETR', 0) / 1000000 - inf(saisies.get('DATRETETR', 0) / 1000000) * 100) not in [{'first': '01', 'type': 'interval', 'last': '12'}] and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATRETETR', 0) / 1000000 - inf(saisies.get('DATRETETR', 0) / 1000000) * 100) not in [{'first': '01', 'type': 'interval', 'last': '12'}] and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96502')
+    assert inf(saisies.get('DATRETETR', 0) / 1000000 - inf(saisies.get('DATRETETR', 0) / 1000000) * 100) not in interval(01, 12) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATRETETR', 0) / 1000000 - inf(saisies.get('DATRETETR', 0) / 1000000) * 100) not in interval(01, 12) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96502')
 
     # verif 9653
     assert arr(saisies.get('DATRETETR', 0) / 10000 - inf(saisies.get('DATRETETR', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or arr(saisies.get('DATRETETR', 0) / 10000 - inf(saisies.get('DATRETETR', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96503')
@@ -832,7 +832,7 @@ def verif_regles(saisies):
     assert saisies.get('APPLI_OCEANS', 0) == 0 and 1 - V_CNR > 0 and saisies.get('V_REGCO', 0) + 0 != 2 and saisies.get('V_REGCO', 0) + 0 != 4 and saisies.get('RCMABD', 0) + saisies.get('RCMHAD', 0) + saisies.get('RCMHAB', 0) + saisies.get('REVACT', 0) + saisies.get('DISQUO', 0) + saisies.get('INTERE', 0) + saisies.get('RCMTNC', 0) + saisies.get('REVPEA', 0) + saisies.get('COD2FA', 0) + 0 > 0 and saisies.get('RCMAVFT', 0) > 1 / 3 * saisies.get('RCMABD', 0) + saisies.get('RCMHAD', 0) + saisies.get('RCMHAB', 0) + saisies.get('REVACT', 0) + saisies.get('DISQUO', 0) + saisies.get('INTERE', 0) + saisies.get('RCMTNC', 0) + saisies.get('REVPEA', 0) + saisies.get('COD2FA', 0) + PLAF_AF or saisies.get('DIREPARGNE', 0) > saisies.get('PPLIB', 0) + saisies.get('RCMLIB', 0) + saisies.get('RCMHAD', 0) + saisies.get('RCMHAB', 0) + saisies.get('DISQUO', 0) + saisies.get('INTERE', 0) + saisies.get('COD2FA', 0) + saisies.get('BPVRCM', 0) * 538 / 1000 + PLAF_AF and saisies.get('PPLIB', 0) + saisies.get('RCMLIB', 0) + saisies.get('RCMHAD', 0) + saisies.get('RCMHAB', 0) + saisies.get('DISQUO', 0) + saisies.get('INTERE', 0) + saisies.get('COD2FA', 0) + saisies.get('BPVRCM', 0) + 0 > 0, get_error('DD04')
 
     # verif 5050
-    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_ZDC', 0) + 0 == 0 and saisies.get('V_BTMUL', 0) == 0 and saisies.get('V_0AX', 0) + 0 == 0 and saisies.get('V_0AY', 0) + 0 == 0 and saisies.get('V_0AZ', 0) + 0 == 0 and saisies.get('V_BTRNI', 0) > LIM_BTRNI10 and RNI < saisies.get('V_BTRNI', 0) / 5 and saisies.get('V_BTANC', 0) + 0 == 1 and (saisies.get('V_BTNI1', 0) + 0) not in [{'type': 'enumeration_values', 'values': [50, 92]}] and saisies.get('V_IND_TRAIT', 0) == 4, get_error('DD05')
+    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_ZDC', 0) + 0 == 0 and saisies.get('V_BTMUL', 0) == 0 and saisies.get('V_0AX', 0) + 0 == 0 and saisies.get('V_0AY', 0) + 0 == 0 and saisies.get('V_0AZ', 0) + 0 == 0 and saisies.get('V_BTRNI', 0) > LIM_BTRNI10 and RNI < saisies.get('V_BTRNI', 0) / 5 and saisies.get('V_BTANC', 0) + 0 == 1 and (saisies.get('V_BTNI1', 0) + 0) not in (50, 92) and saisies.get('V_IND_TRAIT', 0) == 4, get_error('DD05')
 
     # verif 3645
     assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('RINVLOCINV', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('RINVLOCREA', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('INVLOCHOTR', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('REPINVTOU', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('INVLOGREHA', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('INVLOGHOT', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('INVLOCXN', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('INVLOCXV', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('COD7UY', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) or saisies.get('COD7UZ', 0) + 0 > LIM_INVLOC3 * 1 + saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0) + positif(saisies.get('V_0AM', 0) + saisies.get('V_0AO', 0)) and RTOURREP + RTOUHOTR + RTOUREPA + 0 > 0, get_error('DD06')
@@ -856,19 +856,19 @@ def verif_regles(saisies):
     assert saisies.get('APPLI_OCEANS', 0) == 0 and 1 - V_CNR > 0 and saisies.get('RCMRDS', 0) > LIM_CONTROLE + saisies.get('RCMABD', 0) + saisies.get('RCMAV', 0) + saisies.get('RCMHAD', 0) + saisies.get('RCMTNC', 0) + saisies.get('REVACT', 0) + saisies.get('PROVIE', 0) + saisies.get('DISQUO', 0) + saisies.get('REVPEA', 0) + saisies.get('RCMHAB', 0) + saisies.get('INTERE', 0) + saisies.get('COD2FA', 0), get_error('DD14')
 
     # verif 1616
-    assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('RDPRESREPORT', 0) + 0 > saisies.get('V_BTPRESCOMP', 0) + LIM_REPORT or saisies.get('PRESCOMP2000', 0) + saisies.get('PRESCOMPJUGE', 0) + 0 > LIM_REPORT and saisies.get('V_BTPRESCOMP', 0) + 0 > 0 or saisies.get('RDPRESREPORT', 0) + 0 > LIM_REPORT and saisies.get('V_BTPRESCOMP', 0) + 0 == 0 and 1 - V_CNR > 0 and RPRESCOMP > 0 and APPLI_ILIAD == 1 and saisies.get('V_NOTRAIT', 0) + 0 < 16 or saisies.get('APPLI_COLBERT', 0) == 1 or (saisies.get('V_BTNI1', 0) + 0) not in [{'type': 'enumeration_values', 'values': [50, 92]}] and APPLI_BATCH == 1, get_error('DD15')
+    assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('RDPRESREPORT', 0) + 0 > saisies.get('V_BTPRESCOMP', 0) + LIM_REPORT or saisies.get('PRESCOMP2000', 0) + saisies.get('PRESCOMPJUGE', 0) + 0 > LIM_REPORT and saisies.get('V_BTPRESCOMP', 0) + 0 > 0 or saisies.get('RDPRESREPORT', 0) + 0 > LIM_REPORT and saisies.get('V_BTPRESCOMP', 0) + 0 == 0 and 1 - V_CNR > 0 and RPRESCOMP > 0 and APPLI_ILIAD == 1 and saisies.get('V_NOTRAIT', 0) + 0 < 16 or saisies.get('APPLI_COLBERT', 0) == 1 or (saisies.get('V_BTNI1', 0) + 0) not in (50, 92) and APPLI_BATCH == 1, get_error('DD15')
 
     # verif 2022
     assert APPLI_BATCH + APPLI_ILIAD + saisies.get('APPLI_OCEANS', 0) == 1 and 1 - V_CNR > 0 and saisies.get('CHRFAC', 0) > 0 and saisies.get('V_0CR', 0) > 0 and RFACC != 0, get_error('DD16')
 
     # verif 5000
-    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and NBPT > saisies.get('V_BTNBP1', 0) + 4 * APPLI_ILIAD + 400 * APPLI_BATCH and saisies.get('V_BTNBP1', 0) + 0 > 0 and saisies.get('V_IND_TRAIT', 0) == 4 and saisies.get('V_BTANC', 0) == 1 and (saisies.get('V_BTNI1', 0) + 0) not in [{'type': 'enumeration_values', 'values': [50, 92]}] and saisies.get('V_BTMUL', 0) != 1 and saisies.get('V_CODILIAD', 0) == 1 and saisies.get('V_BT0AC', 0) == saisies.get('V_0AC', 0) or saisies.get('V_BT0AM', 0) == saisies.get('V_0AM', 0) or saisies.get('V_BT0AO', 0) == saisies.get('V_0AO', 0) or saisies.get('V_BT0AD', 0) == saisies.get('V_0AD', 0) or saisies.get('V_BT0AV', 0) == saisies.get('V_0AV', 0), get_error('DD17')
+    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and NBPT > saisies.get('V_BTNBP1', 0) + 4 * APPLI_ILIAD + 400 * APPLI_BATCH and saisies.get('V_BTNBP1', 0) + 0 > 0 and saisies.get('V_IND_TRAIT', 0) == 4 and saisies.get('V_BTANC', 0) == 1 and (saisies.get('V_BTNI1', 0) + 0) not in (50, 92) and saisies.get('V_BTMUL', 0) != 1 and saisies.get('V_CODILIAD', 0) == 1 and saisies.get('V_BT0AC', 0) == saisies.get('V_0AC', 0) or saisies.get('V_BT0AM', 0) == saisies.get('V_0AM', 0) or saisies.get('V_BT0AO', 0) == saisies.get('V_0AO', 0) or saisies.get('V_BT0AD', 0) == saisies.get('V_0AD', 0) or saisies.get('V_BT0AV', 0) == saisies.get('V_0AV', 0), get_error('DD17')
 
     # verif 5103
-    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and DAR > LIM_CONTROLE and saisies.get('V_BTRNI', 0) > 0 and (saisies.get('V_BTNI1', 0) + 0) not in [{'type': 'enumeration_values', 'values': [50, 92]}] and saisies.get('V_IND_TRAIT', 0) == 4, get_error('DD18')
+    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and DAR > LIM_CONTROLE and saisies.get('V_BTRNI', 0) > 0 and (saisies.get('V_BTNI1', 0) + 0) not in (50, 92) and saisies.get('V_IND_TRAIT', 0) == 4, get_error('DD18')
 
     # verif 2562
-    assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('NBACT', 0) > SOMMEA700 and (saisies.get('V_REGCO', 0) + 0) in [{'type': 'enumeration_values', 'values': [1, 3, 5, 6, 7]}], get_error('DD19')
+    assert saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('NBACT', 0) > SOMMEA700 and (saisies.get('V_REGCO', 0) + 0) in (1, 3, 5, 6, 7), get_error('DD19')
 
     # verif 5104
     assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_BTANC', 0) == 1 and saisies.get('DAGRI1', 0) + saisies.get('DAGRI2', 0) + saisies.get('DAGRI3', 0) + saisies.get('DAGRI4', 0) + saisies.get('DAGRI5', 0) + saisies.get('DAGRI6', 0) > LIM_CONTROLE + saisies.get('V_BTDBA', 0) and saisies.get('V_IND_TRAIT', 0) == 4, get_error('DD20')
@@ -877,7 +877,7 @@ def verif_regles(saisies):
     assert saisies.get('APPLI_OCEANS', 0) == 0 and 1 - V_CNR > 0 and saisies.get('RVAIDE', 0) + saisies.get('RVAIDAS', 0) + saisies.get('CREAIDE', 0) + 0 > LIM_AIDOMI3 * 1 - positif(saisies.get('PREMAIDE', 0)) + LIM_PREMAIDE2 * positif(saisies.get('PREMAIDE', 0)) and saisies.get('INAIDE', 0) == 1 and positif(saisies.get('V_0AP', 0) + 0) == 0 and positif(saisies.get('V_0AF', 0) + 0) == 0 and positif(saisies.get('V_0CG', 0) + 0) == 0 and positif(saisies.get('V_0CI', 0) + 0) == 0 and positif(saisies.get('V_0CR', 0) + 0) == 0, get_error('DD21')
 
     # verif 2010
-    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_BTCSGDED', 0) * 1 - present(saisies.get('DCSG', 0)) + saisies.get('DCSG', 0) * 1 - null(4 - saisies.get('V_REGCO', 0)) > saisies.get('V_BTCSGDED', 0) + LIM_CONTROLE and 1 - V_CNR > 0 and RDCSG > 0 and APPLI_ILIAD == 1 and saisies.get('V_NOTRAIT', 0) + 0 < 16 or (saisies.get('V_BTNI1', 0) + 0) not in [{'type': 'enumeration_values', 'values': [50, 92]}] and APPLI_BATCH == 1, get_error('DD22')
+    assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_BTCSGDED', 0) * 1 - present(saisies.get('DCSG', 0)) + saisies.get('DCSG', 0) * 1 - null(4 - saisies.get('V_REGCO', 0)) > saisies.get('V_BTCSGDED', 0) + LIM_CONTROLE and 1 - V_CNR > 0 and RDCSG > 0 and APPLI_ILIAD == 1 and saisies.get('V_NOTRAIT', 0) + 0 < 16 or (saisies.get('V_BTNI1', 0) + 0) not in (50, 92) and APPLI_BATCH == 1, get_error('DD22')
 
     # verif 1607
     assert saisies.get('APPLI_COLBERT', 0) + saisies.get('APPLI_OCEANS', 0) == 0 and saisies.get('V_IND_TRAIT', 0) == 4 and saisies.get('BAILOC98', 0) > saisies.get('V_BTBAILOC98', 0) or present(saisies.get('BAILOC98', 0)) == 1 and present(saisies.get('V_BTBAILOC98', 0)) == 0, get_error('DD24')
