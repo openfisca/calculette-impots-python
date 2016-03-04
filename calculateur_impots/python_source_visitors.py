@@ -148,7 +148,7 @@ def visit_integer(node):
 
 
 def visit_interval(node):
-    return 'interval({}, {})'.format(node['first'], node['last'])
+    return 'interval({}, {})'.format(int(node['first']), int(node['last']))
 
 
 def visit_loop_expression(node):
