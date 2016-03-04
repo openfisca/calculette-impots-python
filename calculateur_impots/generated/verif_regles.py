@@ -730,13 +730,13 @@ def verif_regles(saisies):
     assert present(saisies.get('CMAJ_ISF', 0)) == 0 and present(saisies.get('MOISAN_ISF', 0)) == 1, get_error('A96204')
 
     # verif 9631
-    assert saisies.get('V_IND_TRAIT', 0) > 0 and inf(saisies.get('MOISAN', 0) / 10000) not in interval(01, 12) or inf(saisies.get('MOISAN2', 0) / 10000) not in interval(00, 12), get_error('A96301')
+    assert saisies.get('V_IND_TRAIT', 0) > 0 and inf(saisies.get('MOISAN', 0) / 10000) not in interval(1, 12) or inf(saisies.get('MOISAN2', 0) / 10000) not in interval(0, 12), get_error('A96301')
 
     # verif 7317
     assert saisies.get('APPLI_COLBERT', 0) == 1 and arr(saisies.get('MOISAN', 0) / 10000 - inf(saisies.get('MOISAN', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 1 and arr(saisies.get('MOISAN', 0) / 10000 - inf(saisies.get('MOISAN', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 2 and arr(saisies.get('MOISAN', 0) / 10000 - inf(saisies.get('MOISAN', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 3, get_error('A96302')
 
     # verif 9633
-    assert saisies.get('V_IND_TRAIT', 0) + 0 == 4 and inf(saisies.get('MOISAN_ISF', 0) / 10000) not in interval(01, 12) or saisies.get('V_IND_TRAIT', 0) + 0 == 5 and inf(saisies.get('MOISAN_ISF', 0) / 10000) not in interval(01, 12) and saisies.get('MOISAN_ISF', 0) != 0, get_error('A96303')
+    assert saisies.get('V_IND_TRAIT', 0) + 0 == 4 and inf(saisies.get('MOISAN_ISF', 0) / 10000) not in interval(1, 12) or saisies.get('V_IND_TRAIT', 0) + 0 == 5 and inf(saisies.get('MOISAN_ISF', 0) / 10000) not in interval(1, 12) and saisies.get('MOISAN_ISF', 0) != 0, get_error('A96303')
 
     # verif 9634
     assert saisies.get('APPLI_OCEANS', 0) == 0 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 1 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 2 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 3 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 4, get_error('A96304')
@@ -745,19 +745,19 @@ def verif_regles(saisies):
     assert saisies.get('APPLI_COLBERT', 0) == 1 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 1 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 2 and arr(saisies.get('MOISAN_ISF', 0) / 10000 - inf(saisies.get('MOISAN_ISF', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) + 3, get_error('A96304')
 
     # verif 9641
-    assert inf(saisies.get('DATDEPETR', 0) / 1000000) not in interval(01, 31) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATDEPETR', 0) / 1000000) not in interval(01, 31) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96401')
+    assert inf(saisies.get('DATDEPETR', 0) / 1000000) not in interval(1, 31) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATDEPETR', 0) / 1000000) not in interval(1, 31) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96401')
 
     # verif 9642
-    assert inf(saisies.get('DATDEPETR', 0) / 1000000 - inf(saisies.get('DATDEPETR', 0) / 1000000) * 100) not in interval(01, 12) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATDEPETR', 0) / 1000000 - inf(saisies.get('DATDEPETR', 0) / 1000000) * 100) not in interval(01, 12) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96402')
+    assert inf(saisies.get('DATDEPETR', 0) / 1000000 - inf(saisies.get('DATDEPETR', 0) / 1000000) * 100) not in interval(1, 12) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATDEPETR', 0) / 1000000 - inf(saisies.get('DATDEPETR', 0) / 1000000) * 100) not in interval(1, 12) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96402')
 
     # verif 9643
     assert arr(saisies.get('DATDEPETR', 0) / 10000 - inf(saisies.get('DATDEPETR', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or arr(saisies.get('DATDEPETR', 0) / 10000 - inf(saisies.get('DATDEPETR', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATDEPETR', 0) != 0, get_error('A96403')
 
     # verif 9651
-    assert inf(saisies.get('DATRETETR', 0) / 1000000) not in interval(01, 31) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATRETETR', 0) / 1000000) not in interval(01, 31) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96501')
+    assert inf(saisies.get('DATRETETR', 0) / 1000000) not in interval(1, 31) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATRETETR', 0) / 1000000) not in interval(1, 31) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96501')
 
     # verif 9652
-    assert inf(saisies.get('DATRETETR', 0) / 1000000 - inf(saisies.get('DATRETETR', 0) / 1000000) * 100) not in interval(01, 12) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATRETETR', 0) / 1000000 - inf(saisies.get('DATRETETR', 0) / 1000000) * 100) not in interval(01, 12) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96502')
+    assert inf(saisies.get('DATRETETR', 0) / 1000000 - inf(saisies.get('DATRETETR', 0) / 1000000) * 100) not in interval(1, 12) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or inf(saisies.get('DATRETETR', 0) / 1000000 - inf(saisies.get('DATRETETR', 0) / 1000000) * 100) not in interval(1, 12) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96502')
 
     # verif 9653
     assert arr(saisies.get('DATRETETR', 0) / 10000 - inf(saisies.get('DATRETETR', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) and saisies.get('V_IND_TRAIT', 0) + 0 == 4 or arr(saisies.get('DATRETETR', 0) / 10000 - inf(saisies.get('DATRETETR', 0) / 10000) * 10000) != saisies.get('V_ANREV', 0) and saisies.get('V_IND_TRAIT', 0) == 5 and saisies.get('DATRETETR', 0) != 0, get_error('A96503')
