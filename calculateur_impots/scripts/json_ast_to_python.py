@@ -162,7 +162,7 @@ def main():
         iter_ast_json_file_names(pathnames=['chap-ini.json']),
         )))
     ordered_formulas_names_file_name = os.path.join('semantic_data', 'ordered_formulas.json')
-    ordered_formulas_names = list(map(
+    ordered_sanitized_formulas_names = list(map(
         python_source_visitors.sanitized_variable_name,
         read_json_file(json_file_name=ordered_formulas_names_file_name),
         ))
@@ -176,7 +176,7 @@ def main():
                     '\n',
                     ),
                 pipe(
-                    ordered_formulas_names,
+                    ordered_sanitized_formulas_names,
                     filter(lambda formula_name: formula_name in initial_formula_source_by_name),
                     map(lambda formula_name: initial_formula_source_by_name[formula_name]),
                     ),
@@ -193,8 +193,6 @@ def main():
             ),
         )))
     if formula_source_by_name:
-        ordered_formulas_names_file_name = os.path.join('semantic_data', 'ordered_formulas.json')
-        ordered_formulas_names = read_json_file(json_file_name=ordered_formulas_names_file_name)
         write_source_file(
             file_name='formulas.py',
             source=lines_to_python_source(itertools.chain(
@@ -204,7 +202,7 @@ def main():
                     '\n',
                     ),
                 pipe(
-                    ordered_formulas_names,
+                    ordered_sanitized_formulas_names,
                     filter(lambda formula_name: formula_name not in initial_formula_source_by_name),
                     map(lambda formula_name: formula_source_by_name.get(formula_name, '{} = 0'.format(formula_name))),
                     ),
