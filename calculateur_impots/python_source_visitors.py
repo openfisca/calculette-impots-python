@@ -117,7 +117,7 @@ def visit_dans(node):
     return '{} {} {}'.format(
         visit_node(node['expression'], parenthesised=True),
         'not in' if node.get('negative_form') else 'in',
-        node['enumeration'],
+        visit_node(node['enumeration']),
         )
 
 
@@ -145,6 +145,10 @@ def visit_function_call(node):
 
 def visit_integer(node):
     return str(node['value'])
+
+
+def visit_interval(node):
+    return 'interval({}, {})'.format(node['first'], node['last'])
 
 
 def visit_loop_expression(node):
