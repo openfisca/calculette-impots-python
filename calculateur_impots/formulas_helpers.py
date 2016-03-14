@@ -3,7 +3,7 @@
 
 import math
 
-from toolz.curried.operator import eq, ge, gt, ne
+from toolz.curried.operator import ge, gt, is_, ne
 
 
 # M language functions
@@ -11,7 +11,7 @@ from toolz.curried.operator import eq, ge, gt, ne
 
 arr = round
 inf = math.floor
-null = eq(0)
+null = is_(None)
 positif = gt(0)
 positif_ou_nul = ge(0)
 present = ne(0)

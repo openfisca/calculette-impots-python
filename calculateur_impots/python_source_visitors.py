@@ -44,7 +44,7 @@ def visit_infix_expression(node, operators={}):
         else operators.get(operand_or_operator, operand_or_operator)
         for index, operand_or_operator in interleave(node['operands'], node['operators'])
         )
-    return ' '.join(map(str, tokens))
+    return '({})'.format(' '.join(map(str, tokens)))
 
 
 # Main visitor
@@ -107,9 +107,9 @@ def visit_boolean_expression(node):
 
 def visit_comparaison(node):
     return '{} {} {}'.format(
-        visit_node(node['left_operand']),
+        visit_node(node['left_operand'], parenthesised=True),
         {'=': '=='}.get(node['operator'], node['operator']),
-        visit_node(node['right_operand']),
+        visit_node(node['right_operand'], parenthesised=True),
         )
 
 
@@ -130,9 +130,12 @@ def visit_float(node):
 
 
 def visit_formula(node):
-    expression_source = visit_node(node['expression'])
     sanitized_formula_name = sanitized_variable_name(node['name'])
+    expression_source = visit_node(node['expression'])
     source = '{} = {}'.format(sanitized_formula_name, expression_source)
+    if 'pour_formula' in node:
+        pour_formula_name = node['pour_formula']['name']
+        source = '# From {}\n'.format(pour_formula_name) + source
     return (sanitized_formula_name, source)
 
 
@@ -163,11 +166,17 @@ def visit_loop_expression(node):
 
 
 def visit_pour_formula(node):
-    return map(visit_node, iter_unlooped_nodes(
-        loop_variables_nodes=node['loop_variables'],
-        node=node['formula'],
-        unloop_keys=['name'],
-        ))
+    def update_and_visit_node(node1):
+        node1.update({'pour_formula': node['formula']})
+        return visit_node(node1)
+    return map(
+        update_and_visit_node,
+        iter_unlooped_nodes(
+            loop_variables_nodes=node['loop_variables'],
+            node=node['formula'],
+            unloop_keys=['name'],
+            ),
+        )
 
 
 def visit_product_expression(node):
@@ -187,8 +196,13 @@ def visit_sum_expression(node):
 
 def visit_symbol(node):
     symbol = node['value']
-    return 'saisies.get({!r}, 0)'.format(symbol) \
-        if core.get_variable_type(symbol) == 'variable_saisie' else sanitized_variable_name(symbol)
+    return 'saisie_variables.get({!r}, 0)'.format(symbol) \
+        if core.is_saisie_variable(symbol) \
+        else (
+            'base_variables[{!r}]'.format(symbol)
+            if core.is_base_variable(symbol)
+            else sanitized_variable_name(symbol)
+            )
 
 
 def visit_ternary_operator(node):
@@ -206,7 +220,7 @@ def visit_variable_const(node):
 def visit_verif(node):
     return '# verif {name}\n{assertions}\n'.format(
         assertions='\n'.join(
-            'assert {expression}, get_error({error_name!r})'.format(
+            'assert not ({expression}), get_error({error_name!r})'.format(
                 error_name=condition_node['error_name'],
                 expression=visit_node(condition_node['expression']),
                 )
