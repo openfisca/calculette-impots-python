@@ -214,16 +214,21 @@ def main():
             filenames=['chap-*.json', 'res-ser*.json'],
             ),
         )))
-    formulas_names = filter(
-        lambda formula_name: python_source_visitors.sanitized_variable_name(formula_name) in formula_source_by_name,
-        ordered_formulas_names,
-        )
+    # formulas_names = filter(
+    #     lambda formula_name: python_source_visitors.sanitized_variable_name(formula_name) in formula_source_by_name,
+    #     ordered_formulas_names,
+    #     )
+
+    def get_formula_source(formula_name):
+        sanitized_formula_name = python_source_visitors.sanitized_variable_name(formula_name)
+        return formula_source_by_name[sanitized_formula_name] \
+            if sanitized_formula_name in formula_source_by_name \
+        else '# WARNING: the variable "{0}" is used in a formula at least, but is not defined.\n{0} = 0'.format(
+            sanitized_formula_name)
+
     write_source_file(
         file_name='formulas.py',
-        source=formulas_file_source(map(
-            lambda formula_name: formula_source_by_name[python_source_visitors.sanitized_variable_name(formula_name)],
-            formulas_names,
-            )),
+        source=formulas_file_source(map(get_formula_source, ordered_formulas_names)),
         )
 
     return 0

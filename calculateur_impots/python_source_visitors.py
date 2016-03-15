@@ -15,7 +15,7 @@ import pprint
 import textwrap
 
 from m_language_parser.unloop_helpers import iter_unlooped_nodes
-from toolz import mapcat
+from toolz import interpose, mapcat
 
 from . import core
 
@@ -38,12 +38,22 @@ def visit_infix_expression(node, operators={}):
                 if value != UnboundLocalError:
                     yield index, value
 
-    tokens = (
+    tokens = [
         visit_node(operand_or_operator)
         if index == 0
         else operators.get(operand_or_operator, operand_or_operator)
         for index, operand_or_operator in interleave(node['operands'], node['operators'])
-        )
+        ]
+    # Detect a specific case and transform it into a lazy expression in order to prevent a division by 0:
+    # a * b ... => a and a * b ...
+    if node['type'] == 'product_expression':
+        # last_operand_type = node['operands'][-1]['type']
+        # assert last_operand_type in ('function_call', 'integer', 'sum_expression', 'symbol'), last_operand_type
+        # if last_operand_type != 'integer':
+        tokens = interpose(
+            el='and',
+            seq=[visit_node(operand) for operand in node['operands'][:-1]] + [' '.join(map(str, tokens))],
+            )
     return '({})'.format(' '.join(map(str, tokens)))
 
 

@@ -3,21 +3,16 @@
 
 
 import argparse
-import json
 import logging
 import os
-import pkg_resources
 import sys
 
-from toolz.curried import concatv, itemmap, keyfilter, mapcat, pipe, valmap
-
-# Note: absolute notation is used here since we are in a script.
+from toolz.curried import itemmap, keyfilter, pipe
 
 from calculateur_impots import core
-# from calculateur_impots.generated import chap_ini_formulas, formulas
 from calculateur_impots.generated import formulas
 from calculateur_impots.generated.variables_definitions import variable_definition_by_name
-# from calculateur_impots.generated.verif_regles import verif_regles
+from calculateur_impots.generated.verif_regles import verif_regles
 
 
 # Globals
@@ -60,7 +55,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Display debug messages')
-    parser.add_argument('calculees', default=['IINETIR'], metavar='variable', nargs='*', help='Variables calculées')
+    parser.add_argument('calculees', default=['IINET'], metavar='variable', nargs='*', help='Variables calculées')
     parser.add_argument('--saisie', dest='saisie_variables', metavar='nom=valeur', nargs='+', help='Variables saisies')
     args = parser.parse_args()
     logging.basicConfig(
@@ -68,112 +63,71 @@ def main():
         stream=sys.stdout,
         )
 
-    # Required variables_saisies: ANREV, REGCO (tag "contexte"?)
+    # Required variables_saisies: V_ANREV, V_REGCO (tag "contexte"?)
     # Set V_IND_TRAIT to "primitif" (value 0?)
+
+    # src/tgvH.m:968:APPLI_AVIS : saisie contexte classe = 0 priorite = 10 categorie_TL = 20 restituee alias AVIS : "Application Avis" ;  # noqa
+    # src/tgvH.m:970:APPLI_COLBERT : saisie contexte classe = 0 priorite = 0 categorie_TL = 0 restituee alias V_COLBERT : "Appli_Colbert" type BOOLEEN ;  # noqa
+    # src/tgvH.m:973:APPLI_OCEANS : saisie contexte classe = 0 priorite = 0 categorie_TL = 0 restituee alias V_OCEANS : "Appli_Oceans" ;  # noqa
+    # src/tgvH.m:2299:CODE_2042 : saisie contexte classe = 0 priorite = 0 categorie_TL = 0 alias V_CODE_2042 : "nouv cor: code majoration de la 2042 fourni par l interface" ;  # noqa
+    # src/tgvH.m:5470:ITREDFRI : saisie contexte classe = 0 priorite = 0 categorie_TL = 0 restituee alias V_REDFRI : "ITRED de la decla finale avant application 1731 bis " type REEL ;  # noqa
+    # src/tgvH.m:14401:V_ANCSDED : saisie contexte classe = 0 priorite = 10 categorie_TL = 20 alias ANCSDED : "Annee de revenu pour variation CSG" ;  # noqa
+    # src/tgvH.m:14404:V_ANREV : saisie contexte classe = 0 priorite = 10 categorie_TL = 20 alias ANREV : "Annee des revenus" type REEL ;  # noqa
+    # src/tgvH.m:14523:V_CALCULIR : saisie contexte classe = 0 priorite = 51 categorie_TL = 10 alias CALCULIR : "= 0 si saisie 2042 ILIAD , = 1 si CALCULIR sous ILIAD" ;  # noqa
+    # src/tgvH.m:14524:V_CALCULMAJO : saisie contexte classe = 0 priorite = 51 categorie_TL = 10 alias CALCULMAJO : "pour appel Denature rappel" ;  # noqa
+    # src/tgvH.m:14588:V_ETCVL : saisie contexte classe = 0 priorite = 51 categorie_TL = 10 alias ETCVL : "ISF : Variable relative a l etat civil " type BOOLEEN ;  # noqa
+    # src/tgvH.m:14604:V_IND_TRAIT : saisie contexte classe = 0 priorite = 10 categorie_TL = 20 alias IND_TRAIT : "indicateur de nature de trait. primitif ou correctif" ;  # noqa
+    # src/tgvH.m:14682:V_REGANT : saisie contexte classe = 0 priorite = 51 categorie_TL = 10 alias REGANT : "Valeur de REGCO evt -1 calculee " ;  # noqa
+    # src/tgvH.m:14683:V_REGCO : saisie contexte classe = 0 priorite = 51 categorie_TL = 10 alias REGCO : "Valeur de REGCO calculee (Cf. VALREGCO)" ;  # noqa
+    # src/tgvH.m:14826:V_ROLCSG : saisie contexte classe = 0 priorite = 10 categorie_TL = 20 alias ROLCSG : "numero de role CSG" ;  # noqa
+    # src/tgvH.m:14880:V_TRCT : saisie contexte classe = 0 priorite = 51 categorie_TL = 10 alias TRCT : "Variable relative a la telecorrection" ;  # noqa
+
+    # src/tgvH.m:14339:V_0DA : saisie famille classe = 0 priorite = 20 categorie_TL = 10 nat_code = 0 restituee alias 0DA : "Annee de naissance du declarant" type DATE_AAAA ;
 
     saisie_variables = dict(iter_saisie_variables(args.saisie_variables)) \
         if args.saisie_variables is not None \
         else {}
+    # saisie_variables['V_IND_TRAIT'] = 0
+    saisie_variables['V_ANREV'] = 2014
     log.debug('saisie_variables: {}'.format(saisie_variables))
 
     base_variables_value_by_name = {}  # Override base variables values
-    base_variables = pipe(
-        variable_definition_by_name,
-        keyfilter(core.is_base_variable),
-        itemmap(lambda item: (item[0], base_variables_value_by_name.get(item[0], 0))),
-        )
+    base_variables = {
+        variable_name: base_variables_value_by_name.get(variable_name, 0)
+        for variable_name, variable_definition in variable_definition_by_name.items()
+        if core.is_base_variable(variable_name)
+        }
 
-    # Utilisé depuis chap-ini
-    # src/tgvH.m:10943:RIDEFRIBIS : calculee : "Vaut 1 si reduction different de 0 et majo et un revenu 1731 bis " type REEL ;  # noqa
-    # src/tgvH.m:52:10MINSC : calculee : "deductions hors droits d'auteur plafonnees" ;
-    # src/tgvH.m:57:10MINSV : calculee : "deductions hors droits d'auteur plafonnees" ;
-    # src/tgvH.m:12128:SHBA : calculee : "Somme des revenus categoriels nets hors BA" ; (chap-7)
-    # src/tgvH.m:4019:INDCOLS : calculee restituee : "Indicateur avis CSG (colonne Contrib.sal. 2,5 %) ligne total net" ;  # noqa
-    # src/tgvH.m:4024:INDCTXS : calculee restituee : "Indicateur avis CSG (contrib. salariale 2,5 %) degrevement" ;
-
-    # Utilisé depuis chap-aff
-    # src/chap-aff.m:3016:LIGBPTPGJ = positif(BPTP19WGWJ) * LIG1 * LIG2 * (1 - null(2 - V_REGCO)) * (1 - null(4 - V_REGCO));  # noqa
-    # src/tgvH.m:1770:BPTP19WGWJ : calculee restituee : "Revenus au taux proportionnel 19% 3WG 3WJ" ;
-    # src/tgvH.m:5649:LIGBPTPGJ : calculee restituee : "Indicateur plus values et creances imposees a 19 % (3WG, 3WJ)" ;
-
-    # chap_ini_formulas_results = chap_ini_formulas.compute(
+    # verif_regles(
     #     base_variables=base_variables,
     #     saisie_variables=saisie_variables,
     #     )
-    # log.debug('chap_ini_formulas_results: {}'.format(chap_ini_formulas_results))
 
-    # m_language_parser_dir_path = pkg_resources.get_distribution('m_language_parser').location
-    # formulas_dependencies_file_path = os.path.join(m_language_parser_dir_path, 'json', 'data',
-    #                                                'formulas_dependencies.json')
-    # with open(formulas_dependencies_file_path) as formulas_dependencies_file:
-    #     formulas_dependencies_str = formulas_dependencies_file.read()
-    # formulas_dependencies_by_name = json.loads(formulas_dependencies_str)
-    # # log.debug(len(list(concat(formulas_dependencies_by_name.values()))))
-    # formulas_dependencies_by_name = valmap(
-    #     lambda variables_names: list(sorted(filter(
-    #         lambda formula_name: (not core.is_saisie_variable(formula_name) and
-    #                               not core.is_constant(formula_name) and
-    #                               not core.is_base_variable(formula_name)),
-    #         variables_names,
-    #         ))),
-    #     formulas_dependencies_by_name,
-    #     )
-    # # log.debug(len(list(concat(formulas_dependencies_by_name.values()))))
-    #
-    # # dependencies_cache = {}
-    #
-    # def get_dependencies(formula_name, missing_dependencies, depth=0):
-    #     # if formula_name not in dependencies_cache:
-    #     if formula_name in formulas_dependencies_by_name:
-    #         dependencies = formulas_dependencies_by_name[formula_name]
-    #         # log.debug('A:{}{} {}'.format(' ' * 2 * depth, formula_name, dependencies))
-    #         if dependencies:
-    #             result = list(concatv(
-    #                 dependencies,
-    #                 mapcat(
-    #                     lambda formula_name: get_dependencies(formula_name, missing_dependencies, depth + 1),
-    #                     dependencies,
-    #                     ),
-    #                 ))
-    #             # log.debug('B:{}{} {} => {}'.format(' ' * 2 * depth, formula_name, dependencies, result))
-    #             # dependencies_cache[formula_name] = result
-    #             return result
-    #         else:
-    #             # dependencies_cache[formula_name] = dependencies
-    #             return dependencies
-    #     else:
-    #         log.debug('C:{}{} => None (type: {}, attributes: {})'.format(' ' * 2 * depth, formula_name,
-    #                   core.get_variable_type(formula_name),
-    #                   core.get_variable_definition(formula_name, {}).get('attributes')))
-    #         missing_dependencies.append(formula_name)
-    #         # dependencies_cache[formula_name] = []
-    #         return []
-    #     # log.debug(len(dependencies_cache))
-    #     # return dependencies_cache[formula_name]
+    # From ABPRi
+    # ABPRV = arr((((1 - IND_APBV) * min(APBV, (
+    #     PL_PB and PL_PB * APBV / somme([
+    #         (APBV * (1 - IND_APBV)), (APBC * (1 - IND_APBC)), (APB1 * (1 - IND_APB1)), (APB2 * (1 - IND_APB2)),
+    #         (APB3 * (1 - IND_APB3)), (APB4 * (1 - IND_APB4))
+    #     ])
+    # ))) + (IND_APBV * APBV)))
 
-    # requested_variable_name = args.calculees[0]
-    # log.debug('requested_variable_name = {}'.format(requested_variable_name))
-    # missing_dependencies = []
-    # requested_variable_dependencies = set(get_dependencies(requested_variable_name, missing_dependencies))
-    # import ipdb; ipdb.set_trace()
+    # ABPRV : calculee : "Abattement brut avant ajustement (pensions retraites 10%)" ;
+    # IND_APBV : calculee : "booleen application deduction minimale pensions" ;
+    # APBV : calculee : "Minimum d'abattement 10% (PR)" ;
+    # PL_PB : calculee : "plafond pensions a repartir" ;
 
     formulas_results = formulas.compute(
         base_variables=base_variables,
         saisie_variables=saisie_variables,
         )
-    log.debug('formulas_results: {}'.format(formulas_results))
+    # log.debug('formulas_results: {}'.format(formulas_results))
 
-    # variables_calculees = core.evaluate_formulas(module_name='formulas')
-    #
-    # verif_regles(variables_saisies)
-    #
-    # requested_variables_calculees = list(iter_variables_calculees(args.calculees))
-    # variables_calculees = core.evaluate_formulas(module_name='formulas')
-    # # FIXME Verify that variables_calculees has type "restituee".
-    # print(keyfilter(
-    #     lambda key: key in requested_variables_calculees,
-    #     variables_calculees,
-    #     ))
+    requested_variables_calculees = list(iter_variables_calculees(args.calculees))
+    # FIXME Verify that variables_calculees has type "restituee".
+    print(keyfilter(
+        lambda key: key in requested_variables_calculees,
+        formulas_results,
+        ))
 
     return 0
 

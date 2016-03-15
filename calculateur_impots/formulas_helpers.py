@@ -3,16 +3,29 @@
 
 import math
 
-from toolz.curried.operator import ge, gt, is_, ne
-
 
 # M language functions
 
 
 arr = round
+
 inf = math.floor
-null = is_(None)
-positif = gt(0)
-positif_ou_nul = ge(0)
-present = ne(0)
+
+
+def null(value):
+    return int(value == 0)
+
+
+def positif(value):
+    return int(value > 0)
+
+
+def positif_ou_nul(value):
+    return int(value >= 0)
+
+
+def present(value):
+    return int(value != 0)
+
+
 somme = sum
