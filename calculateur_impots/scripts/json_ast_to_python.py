@@ -187,44 +187,32 @@ def main():
 
     ordered_formulas_names = read_json_file(json_file_name=os.path.join('data', 'ordered_formulas.json'))
 
-    # # Transpile initial formulas (used by verification functions)
-    #
-    # chap_ini_formula_source_by_name = dict(list(mapcat(
-    #     load_regles_file,
-    #     iter_ast_json_file_names(filenames=['chap-ini.json']),
-    #     )))
-    # chap_ini_formulas_names = filter(
-    #     lambda formula_name: formula_name in chap_ini_formula_source_by_name,
-    #     ordered_formulas_names,
-    #     )
-    # write_source_file(
-    #     file_name='chap_ini_formulas.py',
-    #     source=formulas_file_source(map(
-    #         lambda formula_name: chap_ini_formula_source_by_name[formula_name],
-    #         chap_ini_formulas_names,
-    #         )),
-    #     )
-
     # Transpile formulas
 
-    formula_source_by_name = dict(list(mapcat(
+    formula_name_and_source_pairs = list(mapcat(
         load_regles_file,
-        iter_ast_json_file_names(
-            # excluded_filenames=['chap-ini.json'],
-            filenames=['chap-*.json', 'res-ser*.json'],
-            ),
-        )))
-    # formulas_names = filter(
-    #     lambda formula_name: python_source_visitors.sanitized_variable_name(formula_name) in formula_source_by_name,
-    #     ordered_formulas_names,
-    #     )
+        iter_ast_json_file_names(filenames=['chap-*.json', 'res-ser*.json']),
+        ))
+    source_by_formula_name = {}
+    for formula_name, source in formula_name_and_source_pairs:
+        if formula_name not in variable_definition_by_name:
+            log.warning('Formula "{}" has no definition.'.format(formula_name))
+        else:
+            applications = variable_definition_by_name[formula_name]['applications']
+            if formula_name not in source_by_formula_name or 'batch' in applications:
+                if formula_name in source_by_formula_name and 'batch' in applications:
+                    log.warning('Formula "{}" already met from another application, '
+                                'but this one of "batch" is prefered => keep the source of this one ({}).'.format(
+                                    formula_name, source))
+                source_by_formula_name[formula_name] = source
+
 
     def get_formula_source(formula_name):
         sanitized_formula_name = python_source_visitors.sanitized_variable_name(formula_name)
-        return formula_source_by_name[sanitized_formula_name] \
-            if sanitized_formula_name in formula_source_by_name \
-        else '# WARNING: the variable "{0}" is used in a formula at least, but is not defined.\n{0} = 0'.format(
-            sanitized_formula_name)
+        return source_by_formula_name[sanitized_formula_name] \
+            if sanitized_formula_name in source_by_formula_name \
+            else ('# WARNING: the variable "{name}" is used in a formula at least, but is not defined.\n' +
+                'def {name}(): return 0').format(name=sanitized_formula_name)
 
     write_source_file(
         file_name='formulas.py',

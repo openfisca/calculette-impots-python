@@ -15,7 +15,7 @@ import pprint
 import textwrap
 
 from m_language_parser.unloop_helpers import iter_unlooped_nodes
-from toolz import interpose, mapcat
+from toolz import concatv, interpose, mapcat
 
 from . import core
 
@@ -44,15 +44,15 @@ def visit_infix_expression(node, operators={}):
         else operators.get(operand_or_operator, operand_or_operator)
         for index, operand_or_operator in interleave(node['operands'], node['operators'])
         ]
-    # Detect a specific case and transform it into a lazy expression in order to prevent a division by 0:
-    # a * b ... => a and a * b ...
+    # Transform product expressions into a lazy "and" expression in order to prevent a division by 0:
     if node['type'] == 'product_expression':
-        # last_operand_type = node['operands'][-1]['type']
-        # assert last_operand_type in ('function_call', 'integer', 'sum_expression', 'symbol'), last_operand_type
-        # if last_operand_type != 'integer':
-        tokens = interpose(
-            el='and',
-            seq=[visit_node(operand) for operand in node['operands'][:-1]] + [' '.join(map(str, tokens))],
+        tokens = concatv(
+            interpose(
+                el='and',
+                seq=map(visit_node, node['operands'][:-1]),
+                ),
+            ['and'],
+            tokens,
             )
     return '({})'.format(' '.join(map(str, tokens)))
 
@@ -140,12 +140,22 @@ def visit_float(node):
 
 
 def visit_formula(node):
-    sanitized_formula_name = sanitized_variable_name(node['name'])
+    formula_name = node['name']
+    sanitized_formula_name = sanitized_variable_name(formula_name)
     expression_source = visit_node(node['expression'])
-    source = '{} = {}'.format(sanitized_formula_name, expression_source)
-    if 'pour_formula' in node:
-        pour_formula_name = node['pour_formula']['name']
-        source = '# From {}\n'.format(pour_formula_name) + source
+    source = """\
+@cache_result
+def {}():
+    \"\"\"
+    {}{}
+    \"\"\"
+    return {}
+""".format(
+        sanitized_formula_name,
+        core.get_variable_description(formula_name),
+        '\n    From {}'.format(node['pour_formula']['name']) if 'pour_formula' in node else '',
+        expression_source,
+        )
     return (sanitized_formula_name, source)
 
 
@@ -211,7 +221,11 @@ def visit_symbol(node):
         else (
             'base_variables[{!r}]'.format(symbol)
             if core.is_base_variable(symbol)
-            else sanitized_variable_name(symbol)
+            else (
+                '{}()'.format(sanitized_variable_name(symbol))
+                if core.is_calculee_variable(symbol)
+                else sanitized_variable_name(symbol)
+                )
             )
 
 
