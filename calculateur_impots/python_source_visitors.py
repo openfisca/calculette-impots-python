@@ -26,11 +26,6 @@ log = logging.getLogger(__name__)
 # Helpers
 
 
-def sanitized_variable_name(value):
-    # Python variables must not begin with a digit.
-    return '_' + value if value[0].isdigit() else value
-
-
 def visit_infix_expression(node, operators={}):
     def interleave(*iterables):
         for values in itertools.zip_longest(*iterables, fillvalue=UnboundLocalError):
@@ -141,7 +136,7 @@ def visit_float(node):
 
 def visit_formula(node):
     formula_name = node['name']
-    sanitized_formula_name = sanitized_variable_name(formula_name)
+    sanitized_formula_name = core.sanitized_variable_name(formula_name)
     expression_source = visit_node(node['expression'])
     source = """\
 @cache_result
@@ -222,9 +217,9 @@ def visit_symbol(node):
             'base_variables[{!r}]'.format(symbol)
             if core.is_base_variable(symbol)
             else (
-                '{}()'.format(sanitized_variable_name(symbol))
+                '{}()'.format(core.sanitized_variable_name(symbol))
                 if core.is_calculee_variable(symbol)
-                else sanitized_variable_name(symbol)
+                else core.sanitized_variable_name(symbol)
                 )
             )
 

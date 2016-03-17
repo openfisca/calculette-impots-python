@@ -5,8 +5,8 @@ from toolz import get_in, keyfilter
 
 
 def find_restituee_variables():
-    from .generated.variables_definitions import variable_definition_by_name
-    return keyfilter(is_restituee_variable, variable_definition_by_name).keys()
+    from .generated.variables_definitions import definition_by_variable_name
+    return list(keyfilter(is_restituee_variable, definition_by_variable_name).keys())
 
 
 def get_variable_applications(variable_name):
@@ -14,8 +14,8 @@ def get_variable_applications(variable_name):
 
 
 def get_variable_definition(variable_name, default=None):
-    from .generated.variables_definitions import variable_definition_by_name
-    return variable_definition_by_name.get(variable_name, default)
+    from .generated.variables_definitions import definition_by_variable_name
+    return definition_by_variable_name.get(variable_name, default)
 
 
 def get_variable_description(variable_name):
@@ -52,5 +52,20 @@ def is_saisie_variable(variable_name):
     return get_variable_type(variable_name) == 'variable_saisie'
 
 
+# Applications tests
+
+
+def is_batch(variable_name):
+    return is_variable_in_application(variable_name, 'batch')
+
+
 def is_variable_in_application(variable_name, application_name):
     return application_name in get_variable_definition(variable_name, {}).get('applications', [])
+
+
+# Variable name sanitization
+
+
+def sanitized_variable_name(value):
+    # Python variables must not begin with a digit.
+    return '_' + value if value[0].isdigit() else value

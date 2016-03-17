@@ -12,7 +12,7 @@ from toolz.curried.operator import attrgetter
 
 from calculateur_impots import core
 from calculateur_impots.generated import formulas
-from calculateur_impots.generated.variables_definitions import variable_definition_by_name
+from calculateur_impots.generated.variables_definitions import definition_by_variable_name
 # from calculateur_impots.generated.verif_regles import verif_regles
 
 
@@ -48,17 +48,21 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Display debug messages')
-    parser.add_argument('--calculee', dest='calculee_variable', default='IINETIR', metavar='variable',
+    parser.add_argument('--calculees', dest='calculee_variables', metavar='variable', nargs='+',
                         help='Variables calculées')
-    parser.add_argument('--saisie', dest='saisie_variables', metavar='nom=valeur', nargs='+', help='Variables saisies')
+    parser.add_argument('--saisies', dest='saisie_variables', metavar='nom=valeur', nargs='+', help='Variables saisies')
     args = parser.parse_args()
     logging.basicConfig(
         level=logging.DEBUG if args.debug else (logging.INFO if args.verbose else logging.WARNING),
         stream=sys.stdout,
         )
 
-    if not core.is_restituee_variable(args.calculee_variable):
-        parser.error('Variable "{}" is not a variable of type "calculee restituee"'.format(args.calculee_variable))
+    for calculee_variable in args.calculee_variables:
+        if not core.is_restituee_variable(calculee_variable):
+            not_restituee_message = 'Variable "{}" is not a variable of type "calculee restituee"'.format(
+                calculee_variable)
+            log.warning(not_restituee_message)
+            # parser.error(not_restituee_message)
 
     # Required variables_saisies: V_ANREV, V_REGCO (tag "contexte"?)
 
@@ -106,7 +110,7 @@ def main():
     base_variables_value_by_name = {}  # Override base variables values
     base_variables = {
         variable_name: base_variables_value_by_name.get(variable_name, 0)
-        for variable_name, variable_definition in variable_definition_by_name.items()
+        for variable_name, variable_definition in definition_by_variable_name.items()
         if core.is_base_variable(variable_name)
         }
 
@@ -115,60 +119,32 @@ def main():
     #     saisie_variables=saisie_variables,
     #     )
 
-    # From ABPRi
-    # ABPRV = arr((((1 - IND_APBV) * min(APBV, (
-    #     PL_PB and PL_PB * APBV / somme([
-    #         (APBV * (1 - IND_APBV)), (APBC * (1 - IND_APBC)), (APB1 * (1 - IND_APB1)), (APB2 * (1 - IND_APB2)),
-    #         (APB3 * (1 - IND_APB3)), (APB4 * (1 - IND_APB4))
-    #     ])
-    # ))) + (IND_APBV * APBV)))
-
-    # ABPRV : calculee : "Abattement brut avant ajustement (pensions retraites 10%)" ;
-    # IND_APBV : calculee : "booleen application deduction minimale pensions" ;
-    # APBV : calculee : "Minimum d'abattement 10% (PR)" ;
-    # PL_PB : calculee : "plafond pensions a repartir" ;
-
-    formulas_results = formulas.compute(
+    # FIXME Rename "compute"
+    formulas_functions = formulas.compute(
         base_variables=base_variables,
         saisie_variables=saisie_variables,
         )
-    # log.debug('formulas_results: {}'.format(formulas_results))
 
-    try:
-        requested_formula_result = formulas_results[args.calculee_variable]()
-    except:
-        # import json
-        import traceback
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        frames = traceback.extract_tb(exc_traceback)
-        function_names = pipe(frames, map(attrgetter('name')), take_nth(2), drop(1), list)
-        print(function_names)
-
-        # name_and_dependencies_pairs = list(zip(
-        #     function_names,
-        #     map(
-        #         lambda formula_name: list(map(
-        #             lambda dependency_name: (
-        #                 dependency_name,
-        #                 formulas_helpers.result_by_formula_name_cache.get(dependency_name),
-        #                 ),
-        #             variables_dependencies_by_name[formula_name],
-        #             )),
-        #         function_names,
-        #         ),
-        #     ))
-        # from pprint import pprint
-        # pprint(name_and_dependencies_pairs)
-
-        # function_values = map(
-        #     lambda formula_name: formulas_helpers.result_by_formula_name_cache[formula_name],
-        #     function_names,
-        #     )
-        # function_name_and_value_pairs = list(zip(function_names, function_values))
-        # print(function_name_and_value_pairs)
-        raise
-    else:
-        print('{} = {}'.format(args.calculee_variable, requested_formula_result))
+    for calculee_variable_name in args.calculee_variables:
+        sanitized_calculee_variable = core.sanitized_variable_name(calculee_variable_name)
+        requested_formula_result = formulas_functions[sanitized_calculee_variable]()
+        # from calculateur_impots import formulas_helpers
+        # from pprint import pformat
+        # try:
+        #     requested_formula_result = formulas_functions[sanitized_calculee_variable]()
+        # except:
+        #     import traceback
+        #     exc_type, exc_value, exc_traceback = sys.exc_info()
+        #     frames = traceback.extract_tb(exc_traceback)
+        #     raise Exception(pformat({
+        #         'stack_functions': pipe(frames, map(attrgetter('name')), take_nth(2), drop(1), list),
+        #         'eq_2641': formulas_helpers.inspect_cache(predicate=lambda x: x == 2461),
+        #         }, width=200))
+        # print(pformat({
+        #     'eq_2641': formulas_helpers.inspect_cache(predicate=lambda x: x == 2461),
+        #     }, width=200))
+        print('{} = {} ({})'.format(calculee_variable_name, requested_formula_result,
+                                    core.get_variable_description(calculee_variable_name)))
 
     return 0
 

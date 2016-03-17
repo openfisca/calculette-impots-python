@@ -19,9 +19,10 @@ import pprint
 import sys
 import textwrap
 
+from m_language_parser import dependencies_helpers
 from toolz.curried import concat, concatv, filter, map, mapcat, pipe, sorted, valmap
 
-from calculateur_impots import python_source_visitors
+from calculateur_impots import core, python_source_visitors
 
 
 # Globals
@@ -157,10 +158,10 @@ def main():
     # Transpile variables definitions
 
     variables_definitions_file_name = os.path.join('data', 'variables_definitions.json')
-    variable_definition_by_name = read_json_file(json_file_name=variables_definitions_file_name)
+    definition_by_variable_name = read_json_file(json_file_name=variables_definitions_file_name)
     write_source_file(
         file_name='variables_definitions.py',
-        source='variable_definition_by_name = {}\n'.format(pprint.pformat(variable_definition_by_name, width=120)),
+        source='definition_by_variable_name = {}\n'.format(pprint.pformat(definition_by_variable_name, width=120)),
         )
 
     # # Transpile verification functions
@@ -185,7 +186,7 @@ def main():
 
     # Read formulas order
 
-    ordered_formulas_names = read_json_file(json_file_name=os.path.join('data', 'ordered_formulas.json'))
+    # ordered_formulas_names = read_json_file(json_file_name=os.path.join('data', 'ordered_formulas.json'))
 
     # Transpile formulas
 
@@ -195,10 +196,10 @@ def main():
         ))
     source_by_formula_name = {}
     for formula_name, source in formula_name_and_source_pairs:
-        if formula_name not in variable_definition_by_name:
+        if formula_name not in definition_by_variable_name:
             log.warning('Formula "{}" has no definition.'.format(formula_name))
         else:
-            applications = variable_definition_by_name[formula_name]['applications']
+            applications = definition_by_variable_name[formula_name]['applications']
             if formula_name not in source_by_formula_name or 'batch' in applications:
                 if formula_name in source_by_formula_name and 'batch' in applications:
                     log.warning('Formula "{}" already met from another application, '
@@ -208,15 +209,24 @@ def main():
 
 
     def get_formula_source(formula_name):
-        sanitized_formula_name = python_source_visitors.sanitized_variable_name(formula_name)
+        sanitized_formula_name = core.sanitized_variable_name(formula_name)
         return source_by_formula_name[sanitized_formula_name] \
             if sanitized_formula_name in source_by_formula_name \
             else ('# WARNING: the variable "{name}" is used in a formula at least, but is not defined.\n' +
-                'def {name}(): return 0').format(name=sanitized_formula_name)
+                'def {name}(): return 0\n').format(name=sanitized_formula_name)
 
+    # write_source_file(
+    #     file_name='formulas.py',
+    #     source=formulas_file_source(map(get_formula_source, ordered_formulas_names)),
+    #     )
+    dependencies_by_formula_name = dependencies_helpers.load_dependencies_by_formula_name()
+    formula_names = set(dependencies_by_formula_name.keys()) | set(filter(
+        lambda variable_name: core.is_calculee_variable(variable_name) and not core.has_tag(variable_name, 'base'),
+        definition_by_variable_name,
+        ))
     write_source_file(
         file_name='formulas.py',
-        source=formulas_file_source(map(get_formula_source, ordered_formulas_names)),
+        source=formulas_file_source(map(get_formula_source, formula_names)),
         )
 
     return 0
