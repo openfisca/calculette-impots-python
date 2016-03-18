@@ -21,6 +21,10 @@ arr = round
 inf = math.floor
 
 
+def interval(first, last):
+    return range(first, last + 1)
+
+
 def null(value):
     return int(value == 0)
 

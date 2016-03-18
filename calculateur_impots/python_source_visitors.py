@@ -247,7 +247,10 @@ def visit_variable_const(node):
 def visit_verif(node):
     return '# verif {name}\n{assertions}\n'.format(
         assertions='\n'.join(
-            'assert not ({expression}), get_error({error_name!r})'.format(
+            """\
+if {expression}:
+    errors.append({error_name!r})
+""".format(
                 error_name=condition_node['error_name'],
                 expression=visit_node(condition_node['expression']),
                 )

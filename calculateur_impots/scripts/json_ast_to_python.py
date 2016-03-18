@@ -153,20 +153,23 @@ def main():
     verif_functions_sources = list(
         mapcat(load_verifs_file, iter_ast_json_file_names(filenames=['coc*.json', 'coi*.json']))
         )
-    verif_regles_source = """\
+    verifs_source = """\
+from . import formulas
 from ..formulas_helpers import *
+from .constants import *
 
-def get_error(code):
-    return code
-
-def verif_regles(base_variables, saisie_variables):
-    import ipdb; ipdb.set_trace()
-    globals().update(results)
+def get_errors(base_variables, saisie_variables):
+    formulas_functions = formulas.get_formulas(base_variables, saisie_variables)
+    globals().update(formulas_functions)
+    # Special variables not defined in tgvH
+    V_9VV = 1
+    errors = []
 {}
+    return errors or None
 """.format(textwrap.indent(''.join(verif_functions_sources), prefix=4 * ' '))
     write_source_file(
-        file_name='verif_regles.py',
-        source=verif_regles_source,
+        file_name='verifs.py',
+        source=verifs_source,
         )
 
     # Transpile formulas
