@@ -7,13 +7,12 @@ import logging
 import os
 import sys
 
-from toolz.curried import drop, map, pipe, take_nth
-from toolz.curried.operator import attrgetter
+from toolz.curried import map
 
 from calculateur_impots import core
 from calculateur_impots.generated import formulas
 from calculateur_impots.generated.variables_definitions import definition_by_variable_name
-# from calculateur_impots.generated.verif_regles import verif_regles
+from calculateur_impots.generated.verif_regles import verif_regles
 
 
 # Globals
@@ -101,7 +100,11 @@ def main():
     saisie_variables['V_0DA'] = 1980
 
     # src/tgvH.m:14317:V_0AC : saisie famille classe = 0 priorite = 20 categorie_TL = 10 nat_code = 0 alias 0AC : "Case a cocher : situation de famille Celibataire" type BOOLEEN ;  # noqa
-    saisie_variables['V_0AC'] = 1
+    # saisie_variables['V_0AC'] = 1
+
+    # Avoid division by 0
+    saisie_variables['CARPENBAV'] = 1
+    saisie_variables['CARPENBAC'] = 1
 
     if args.saisie_variables is not None:
         saisie_variables.update(iter_saisie_variables(args.saisie_variables))
@@ -119,8 +122,7 @@ def main():
     #     saisie_variables=saisie_variables,
     #     )
 
-    # FIXME Rename "compute"
-    formulas_functions = formulas.compute(
+    formulas_functions = formulas.get_formulas(
         base_variables=base_variables,
         saisie_variables=saisie_variables,
         )

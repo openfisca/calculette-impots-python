@@ -15,7 +15,7 @@ import pprint
 import textwrap
 
 from m_language_parser.unloop_helpers import iter_unlooped_nodes
-from toolz import concatv, interpose, mapcat
+from toolz import concatv, interpose
 
 from . import core
 
@@ -138,18 +138,23 @@ def visit_formula(node):
     formula_name = node['name']
     sanitized_formula_name = core.sanitized_variable_name(formula_name)
     expression_source = visit_node(node['expression'])
+    docstring_lines = []
+    description = core.get_variable_description(formula_name)
+    if description is not None:
+        docstring_lines.append(description)
+    if 'pour_formula' in node:
+        docstring_lines.append('From {}'.format(node['pour_formula']['name']))
     source = """\
-@cache_result
-def {}():
+@cached
+def {formula_name}():
     \"\"\"
-    {}{}
+{docstring}
     \"\"\"
-    return {}
+    return {expression}
 """.format(
-        sanitized_formula_name,
-        core.get_variable_description(formula_name),
-        '\n    From {}'.format(node['pour_formula']['name']) if 'pour_formula' in node else '',
-        expression_source,
+        docstring=textwrap.indent('\n'.join(docstring_lines), prefix=4 * ' '),
+        expression=expression_source,
+        formula_name=sanitized_formula_name,
         )
     return (sanitized_formula_name, source)
 
@@ -199,8 +204,11 @@ def visit_product_expression(node):
 
 
 def visit_regle(node):
-    return mapcat(
-        lambda node1: visit_node(node1) if node1['type'] == 'pour_formula' else [visit_node(node1)],
+    return map(
+        lambda node1: {
+            'applications': node['applications'],
+            'sources': visit_node(node1) if node1['type'] == 'pour_formula' else [visit_node(node1)],
+            },
         node['formulas'],
         )
 
@@ -215,7 +223,7 @@ def visit_symbol(node):
         if core.is_saisie_variable(symbol) \
         else (
             'base_variables[{!r}]'.format(symbol)
-            if core.is_base_variable(symbol)
+            if core.is_base_variable(symbol) and not core.is_restituee_variable(symbol)
             else (
                 '{}()'.format(core.sanitized_variable_name(symbol))
                 if core.is_calculee_variable(symbol)

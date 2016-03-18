@@ -19,10 +19,9 @@ import pprint
 import sys
 import textwrap
 
-from m_language_parser import dependencies_helpers
-from toolz.curried import concat, concatv, filter, map, mapcat, pipe, sorted, valmap
+from toolz.curried import concat, concatv, filter, first, map, mapcat, pipe, sorted, valmap
 
-from calculateur_impots import core, python_source_visitors
+from calculateur_impots import core, formulas_helpers, python_source_visitors
 
 
 # Globals
@@ -40,20 +39,14 @@ generated_dir_path = os.path.abspath(os.path.join(script_dir_path, '..', 'genera
 
 
 def formulas_file_source(formulas_sources):
-    return as_lines(concatv(
-        (
-            'from ..formulas_helpers import *',
-            'from .constants import *\n',
-            'def compute(base_variables, saisie_variables):',
-            ),
-        map(
-            lambda formula_source: textwrap.indent(formula_source, prefix=4 * ' '),
-            formulas_sources,
-            ),
-        (
-            '    return locals()',
-            ),
-        ))
+    return """\
+from ..formulas_helpers import *
+from .constants import *
+
+def get_formulas(base_variables, saisie_variables):
+{}
+    return locals()
+""".format(textwrap.indent('\n'.join(formulas_sources), prefix=4 * ' '))
 
 
 def as_lines(sequence):
@@ -104,20 +97,11 @@ def iter_ast_json_file_names(filenames, excluded_filenames=None):
 
 def load_regles_file(json_file_name):
     regles_nodes = read_ast_json_file(json_file_name)
-    regles_nodes = filter(
-        lambda node: 'batch' in node['applications'] or 'iliad' in node['applications'],
-        regles_nodes,
-        )
-    formula_name_and_source_pairs = mapcat(python_source_visitors.visit_node, regles_nodes)
-    return formula_name_and_source_pairs
+    return mapcat(python_source_visitors.visit_node, regles_nodes)
 
 
 def load_verifs_file(json_file_name):
     verifs_nodes = read_ast_json_file(json_file_name)
-    verifs_nodes = filter(
-        lambda node: 'batch' in node['applications'] or 'iliad' in node['applications'],
-        verifs_nodes,
-        )
     verif_functions_sources = map(python_source_visitors.visit_node, verifs_nodes)
     return verif_functions_sources
 
@@ -164,66 +148,78 @@ def main():
         source='definition_by_variable_name = {}\n'.format(pprint.pformat(definition_by_variable_name, width=120)),
         )
 
-    # # Transpile verification functions
-    #
-    # verif_functions_sources = list(
-    #     mapcat(load_verifs_file, iter_ast_json_file_names(filenames=['coc*.json', 'coi*.json']))
-    #     )
-    # verif_regles_source = as_lines((
-    #     'from ..formulas_helpers import *',
-    #     'from . import chap_ini_formulas\n',
-    #     'def get_error(code):',
-    #     '    return code',
-    #     'def verif_regles(base_variables, saisie_variables):',
-    #     '    results = chap_ini_formulas.compute(base_variables=base_variables, saisie_variables=saisie_variables)',
-    #     '    globals().update(results)',
-    #     textwrap.indent(''.join(verif_functions_sources), prefix=4 * ' '),
-    #     ))
-    # write_source_file(
-    #     file_name='verif_regles.py',
-    #     source=verif_regles_source,
-    #     )
+    # Transpile verification functions
 
-    # Read formulas order
+    verif_functions_sources = list(
+        mapcat(load_verifs_file, iter_ast_json_file_names(filenames=['coc*.json', 'coi*.json']))
+        )
+    verif_regles_source = """\
+from ..formulas_helpers import *
 
-    # ordered_formulas_names = read_json_file(json_file_name=os.path.join('data', 'ordered_formulas.json'))
+def get_error(code):
+    return code
+
+def verif_regles(base_variables, saisie_variables):
+    import ipdb; ipdb.set_trace()
+    globals().update(results)
+{}
+""".format(textwrap.indent(''.join(verif_functions_sources), prefix=4 * ' '))
+    write_source_file(
+        file_name='verif_regles.py',
+        source=verif_regles_source,
+        )
 
     # Transpile formulas
 
-    formula_name_and_source_pairs = list(mapcat(
+    regles_sources_dicts = list(mapcat(
         load_regles_file,
         iter_ast_json_file_names(filenames=['chap-*.json', 'res-ser*.json']),
         ))
-    source_by_formula_name = {}
-    for formula_name, source in formula_name_and_source_pairs:
-        if formula_name not in definition_by_variable_name:
-            log.warning('Formula "{}" has no definition.'.format(formula_name))
-        else:
-            applications = definition_by_variable_name[formula_name]['applications']
-            if formula_name not in source_by_formula_name or 'batch' in applications:
-                if formula_name in source_by_formula_name and 'batch' in applications:
-                    log.warning('Formula "{}" already met from another application, '
-                                'but this one of "batch" is prefered => keep the source of this one ({}).'.format(
-                                    formula_name, source))
-                source_by_formula_name[formula_name] = source
 
+    def iter_formula_name_and_source_pairs(preferred_application='batch'):
+        visited_applications_by_variable_name = {}
+        for regle_sources_dicts in regles_sources_dicts:
+            applications = regle_sources_dicts['applications']
+            assert applications is not None
+            for variable_name, source in regle_sources_dicts['sources']:
+                visited_applications = visited_applications_by_variable_name.get(variable_name)
+                if visited_applications is not None:
+                    is_double_defined_in_preferred_application = preferred_application in applications and \
+                        preferred_application in visited_applications
+                    assert not is_double_defined_in_preferred_application, (variable_name, visited_applications)
+                    log.debug(
+                        'Variable "{}" already visited and had another application, '
+                        'but this one of "{}" is prefered => keep the source ({}) '
+                        'and the applications({}) of this one.'.format(
+                            variable_name, preferred_application, source, applications))
+                visited_applications_by_variable_name[variable_name] = applications
+                if preferred_application in applications or visited_applications is None:
+                    yield variable_name, source
+
+    source_by_formula_name = dict(iter_formula_name_and_source_pairs())
 
     def get_formula_source(formula_name):
         sanitized_formula_name = core.sanitized_variable_name(formula_name)
         return source_by_formula_name[sanitized_formula_name] \
             if sanitized_formula_name in source_by_formula_name \
-            else ('# WARNING: the variable "{name}" is used in a formula at least, but is not defined.\n' +
+        else ('# WARNING: the formula "{name}" is used in a formula (or more), but is not defined.\n'
                 'def {name}(): return 0\n').format(name=sanitized_formula_name)
 
-    # write_source_file(
-    #     file_name='formulas.py',
-    #     source=formulas_file_source(map(get_formula_source, ordered_formulas_names)),
-    #     )
-    dependencies_by_formula_name = dependencies_helpers.load_dependencies_by_formula_name()
-    formula_names = set(dependencies_by_formula_name.keys()) | set(filter(
-        lambda variable_name: core.is_calculee_variable(variable_name) and not core.has_tag(variable_name, 'base'),
-        definition_by_variable_name,
-        ))
+    dependencies_by_formula_name = formulas_helpers.load_dependencies_by_formula_name()
+    formula_names = pipe(
+        concatv(
+            dependencies_by_formula_name.keys(),
+            concat(dependencies_by_formula_name.values()),
+            definition_by_variable_name,
+            ),
+        filter(
+            lambda variable_name: core.is_calculee_variable(variable_name) and \
+                not core.is_constant(variable_name) and (
+                    not core.is_base_variable(variable_name) or core.is_restituee_variable(variable_name),
+                    ),
+            ),
+        set,
+        )
     write_source_file(
         file_name='formulas.py',
         source=formulas_file_source(map(get_formula_source, formula_names)),

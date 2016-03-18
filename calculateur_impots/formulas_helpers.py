@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
-
+import json
 import math
+import os
+import pkg_resources
 
-from m_language_parser import dependencies_helpers
 from toolz.curried import first
 
 from . import core
-from .generated.variables_definitions import definition_by_variable_name
 
 
 """Functions used by formulas"""
@@ -46,19 +46,19 @@ somme = sum
 result_by_formula_name_cache = {}
 
 
-def cache_result(formula_function):
+def cached(formula_function):
     formula_name = formula_function.__name__
 
-    def new_formula_function():
+    def cached_formula():
         if formula_name not in result_by_formula_name_cache:
             result = formula_function()
-            # if result == 10561.16:
-                # print(formula_name + ' == 10561.16')
-                # import ipdb; ipdb.set_trace()
             result_by_formula_name_cache[formula_name] = result
         return result_by_formula_name_cache[formula_name]
 
-    return new_formula_function
+    return cached_formula
+
+
+# Dependencies helpres
 
 
 def inspect():
@@ -92,35 +92,41 @@ def inspect_cache(predicate=None):
         ]
 
 
+def load_dependencies_by_formula_name():
+    m_language_parser_dir_path = pkg_resources.get_distribution('m_language_parser').location
+    variables_dependencies_file_path = os.path.join(m_language_parser_dir_path, 'json', 'data',
+                                                    'formulas_dependencies.json')
+    with open(variables_dependencies_file_path) as variables_dependencies_file:
+        variables_dependencies_str = variables_dependencies_file.read()
+    dependencies_by_formula_name = json.loads(variables_dependencies_str)
+    return dependencies_by_formula_name
+
+
 def has_dependency(formula_name, dependency_formula_names, dependencies_by_formula_name):
-    def walk_dependencies(formula_name, dependencies):
-        if formula_name in dependencies:
+    def walk_dependencies(formula_name, visited_dependencies):
+        if formula_name in visited_dependencies:
             return False
-        dependencies.add(formula_name)
+        visited_dependencies.add(formula_name)
         if formula_name in dependency_formula_names:
             return True
         formula_dependencies = dependencies_by_formula_name.get(formula_name)
         if formula_dependencies is not None:
             for dependency_name in formula_dependencies:
                 if walk_dependencies(
-                        dependencies=dependencies,
+                        visited_dependencies=visited_dependencies,
                         formula_name=dependency_name,
                         ):
                     return True
         return False
 
     return walk_dependencies(
-        dependencies=set(),
         formula_name=formula_name,
+        visited_dependencies=set(),
         )
 
 
 def find_restituee_variables_depending_on(formula_names):
-    dependencies_by_formula_name = dependencies_helpers.load_dependencies_by_formula_name()
-    # formulas_dependencies_by_formula_name = dependencies_helpers.filter_formulas_dependencies(
-    #     definition_by_variable_name=definition_by_variable_name,
-    #     dependencies_by_formula_name=dependencies_by_formula_name,
-    #     )
+    dependencies_by_formula_name = load_dependencies_by_formula_name()
     restituee_variable_names = core.find_restituee_variables()
     return list(filter(
         lambda restituee_variable_name: has_dependency(
