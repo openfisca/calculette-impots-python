@@ -36,3 +36,7 @@ $ python3 calculateur_impots/scripts/json_ast_to_python.py /path/to/m-language-p
 ```
 $ flake8 --max-line-length 120 .
 ```
+
+## Simulateur en ligne
+
+http://www3.finances.gouv.fr/calcul_impot/2015/simplifie/index.htm
