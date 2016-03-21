@@ -13,14 +13,6 @@ pip3 install --editable . --user
 Un utilisateur plus expérimenté en Python peut utiliser
 un [`virtualenv`](https://virtualenv.readthedocs.org/en/latest/) s'il le souhaite.
 
-## Utilisation
-
-Exemple :
-
-```
-$ python3 calculateur_impots/scripts/calculate.py PPE_SALAVDEFV
-```
-
 ## Transpilation de l'AST JSON en Python
 
 > Transpiler signifie compiler vers un autre langage de programmation.
@@ -29,6 +21,14 @@ Cette étape n'est utile que lorsque les fichiers JSON définissant l'AST change
 
 ```
 $ python3 calculateur_impots/scripts/json_ast_to_python.py /path/to/m-language-parser/json
+```
+
+## Utilisation
+
+Exemple :
+
+```
+$ python3 calculateur_impots/scripts/calculate.py PPE_SALAVDEFV
 ```
 
 ## Qualité du code
