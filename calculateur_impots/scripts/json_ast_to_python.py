@@ -206,30 +206,28 @@ def get_errors(base_variables, saisie_variables):
     source_by_formula_name = dict(iter_formula_name_and_source_pairs())
 
     def get_formula_source(formula_name):
-        sanitized_formula_name = core.sanitized_variable_name(formula_name)
-        return source_by_formula_name[sanitized_formula_name] \
-            if sanitized_formula_name in source_by_formula_name \
-        else ('# WARNING: the formula "{name}" is used in a formula (or more), but is not defined.\n'
-                'def {name}(): return 0\n').format(name=sanitized_formula_name)
+        sanitized_name = core.sanitized_variable_name(formula_name)
+        return source_by_formula_name[sanitized_name] \
+            if sanitized_name in source_by_formula_name and \
+                'corrective' not in definition_by_variable_name.get(formula_name, {}).get('regle_tags', []) \
+            else 'def {}(): return 0\n'.format(sanitized_name)
+
+    def should_appear_in_formulas_file(variable_name):
+        return not core.is_saisie_variable(variable_name) and not core.is_constant(variable_name)
 
     dependencies_by_formula_name = formulas_helpers.load_dependencies_by_formula_name()
     formula_names = pipe(
         concatv(
             dependencies_by_formula_name.keys(),
             concat(dependencies_by_formula_name.values()),
-            definition_by_variable_name,
+            definition_by_variable_name.keys(),
             ),
-        filter(
-            lambda variable_name: core.is_calculee_variable(variable_name) and \
-                not core.is_constant(variable_name) and (
-                    not core.is_base_variable(variable_name) or core.is_restituee_variable(variable_name),
-                    ),
-            ),
+        filter(should_appear_in_formulas_file),
         set,
         )
     write_source_file(
         file_name='formulas.py',
-        source=formulas_file_source(map(get_formula_source, formula_names)),
+        source=formulas_file_source(formulas_sources=map(get_formula_source, formula_names)),
         )
 
     return 0

@@ -222,13 +222,9 @@ def visit_symbol(node):
     return 'saisie_variables.get({!r}, 0)'.format(symbol) \
         if core.is_saisie_variable(symbol) \
         else (
-            'base_variables[{!r}]'.format(symbol)
-            if core.is_base_variable(symbol) and not core.is_restituee_variable(symbol)
-            else (
-                '{}()'.format(core.sanitized_variable_name(symbol))
-                if core.is_calculee_variable(symbol)
-                else core.sanitized_variable_name(symbol)
-                )
+            '{}()'.format(core.sanitized_variable_name(symbol))
+            if core.is_calculee_variable(symbol)
+            else core.sanitized_variable_name(symbol)
             )
 
 
