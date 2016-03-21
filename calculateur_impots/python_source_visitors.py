@@ -241,16 +241,14 @@ def visit_variable_const(node):
 
 
 def visit_verif(node):
-    return '# verif {name}\n{assertions}\n'.format(
-        assertions='\n'.join(
-            """\
+    def get_condition_source(condition_node):
+        return """\
+# verif {verif_name}
 if {expression}:
     errors.append({error_name!r})
 """.format(
-                error_name=condition_node['error_name'],
-                expression=visit_node(condition_node['expression']),
-                )
-            for condition_node in node['conditions']
-            ),
-        name=node['name'],
-        )
+            error_name=condition_node['error_name'],
+            expression=visit_node(condition_node['expression']),
+            verif_name=node['name'],
+            )
+    return '\n'.join(map(get_condition_source, node['conditions']))
