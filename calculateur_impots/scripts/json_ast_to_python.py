@@ -102,8 +102,11 @@ def load_regles_file(json_file_name):
 
 def load_verifs_file(json_file_name):
     verifs_nodes = read_ast_json_file(json_file_name)
-    verif_functions_sources = map(python_source_visitors.visit_node, verifs_nodes)
-    return verif_functions_sources
+    verifs_nodes = filter(
+        lambda node: 'batch' in node['applications'],
+        verifs_nodes,
+        )
+    return map(python_source_visitors.visit_node, verifs_nodes)
 
 
 # Main
@@ -150,9 +153,10 @@ def main():
 
     # Transpile verification functions
 
-    verif_functions_sources = list(
-        mapcat(load_verifs_file, iter_ast_json_file_names(filenames=['coc*.json', 'coi*.json']))
+    verif_sources = list(
+        mapcat(load_verifs_file, iter_ast_json_file_names(filenames=['coc*.json', 'coi*.json'])),
         )
+
     verifs_source = """\
 from . import formulas
 from ..formulas_helpers import *
@@ -166,7 +170,7 @@ def get_errors(base_variables, saisie_variables):
     errors = []
 {}
     return errors or None
-""".format(textwrap.indent(''.join(verif_functions_sources), prefix=4 * ' '))
+""".format(textwrap.indent('\n'.join(verif_sources), prefix=4 * ' '))
     write_source_file(
         file_name='verifs.py',
         source=verifs_source,
