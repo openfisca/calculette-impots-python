@@ -119,7 +119,7 @@ def visit_comparaison(node):
 
 
 def visit_dans(node):
-    return '{} {} {}'.format(
+    return 'int({} {} {})'.format(
         visit_node(node['expression'], parenthesised=True),
         'not in' if node.get('negative_form') else 'in',
         visit_node(node['enumeration']),
