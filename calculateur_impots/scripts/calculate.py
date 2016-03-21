@@ -137,7 +137,7 @@ def main():
         print('errors: {}'.format(
             json.dumps(
                 [
-                    (error, definition_by_error_name.get(error, {}).get('description', 'No description found!'))
+                    (error, definition_by_error_name.get(error, {}).get('description', 'No error description found'))
                     for error in unique(errors)  # Keep order
                     ],
                 indent=4,
@@ -151,12 +151,16 @@ def main():
 
     for calculee_variable_name in args.calculee_variables:
         sanitized_calculee_variable = core.sanitized_variable_name(calculee_variable_name)
+        # requested_formula_result = formulas_functions[sanitized_calculee_variable]()
+        # print('{} = {} ({})'.format(calculee_variable_name, requested_formula_result,
+        #                             core.get_variable_description(calculee_variable_name)))
         try:
             requested_formula_result = formulas_functions[sanitized_calculee_variable]()
         except:
             log.exception('Error while calculating {}'.format(sanitized_calculee_variable))
-        print('{} = {} ({})'.format(calculee_variable_name, requested_formula_result,
-                                    core.get_variable_description(calculee_variable_name)))
+        else:
+            print('{} = {} ({})'.format(calculee_variable_name, requested_formula_result,
+                                        core.get_variable_description(calculee_variable_name)))
 
     return 0
 

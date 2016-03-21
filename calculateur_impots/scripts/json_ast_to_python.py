@@ -196,7 +196,7 @@ def get_errors(base_variables, saisie_variables):
                     assert not is_double_defined_in_preferred_application, (variable_name, visited_applications)
                     log.debug(
                         'Variable "{}" already visited and had another application, '
-                        'but this one of "{}" is prefered => keep the source ({}) '
+                        'but this one of "{}" is preferred => keep the source ({}) '
                         'and the applications({}) of this one.'.format(
                             variable_name, preferred_application, source, applications))
                 visited_applications_by_variable_name[variable_name] = applications
