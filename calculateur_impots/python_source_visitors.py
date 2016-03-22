@@ -44,7 +44,7 @@ def visit_infix_expression(node, operators={}):
         tokens = concatv(
             interpose(
                 el='and',
-                seq=map(visit_node, node['operands'][:-1]),
+                seq=map(visit_node, node['operands']),
                 ),
             ['and'],
             tokens,
