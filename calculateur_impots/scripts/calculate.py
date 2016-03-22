@@ -11,9 +11,9 @@ import sys
 
 from toolz.curried import map, pipe, unique
 
-from calculateur_impots import core
+from calculateur_impots import core, formulas_helpers
 from calculateur_impots.generated import formulas, verifs
-from calculateur_impots.generated.variables_definitions import definition_by_variable_name
+# from calculateur_impots.generated.variables_definitions import definition_by_variable_name
 
 
 # Globals
@@ -107,30 +107,31 @@ def main():
     saisie_variables['V_ANREV'] = 2014
 
     # src/tgvH.m:14339:V_0DA : saisie famille classe = 0 priorite = 20 categorie_TL = 10 nat_code = 0 restituee alias 0DA : "Annee de naissance du declarant" type DATE_AAAA ;  # noqa
-    # saisie_variables['V_0DA'] = 1980
+    saisie_variables['V_0DA'] = 1980
 
     # src/tgvH.m:14317:V_0AC : saisie famille classe = 0 priorite = 20 categorie_TL = 10 nat_code = 0 alias 0AC : "Case a cocher : situation de famille Celibataire" type BOOLEEN ;  # noqa
     # saisie_variables['V_0AC'] = 1
 
     # Avoid division by 0
-    saisie_variables['CARPENBAV'] = 1
-    saisie_variables['CARPENBAC'] = 1
+    # saisie_variables['CARPENBAV'] = 1
+    # saisie_variables['CARPENBAC'] = 1
 
     if args.saisie_variables is not None:
         saisie_variables.update(iter_saisie_variables(args.saisie_variables))
     log.debug('saisie_variables: {}'.format(saisie_variables))
 
-    base_variables_value_by_name = {}  # Override base variables values
-    base_variables = {
-        variable_name: base_variables_value_by_name.get(variable_name, 0)
-        for variable_name, variable_definition in definition_by_variable_name.items()
-        if core.is_base_variable(variable_name)
-        }
+    # base_variables_value_by_name = {}  # Override base variables values
+    # base_variables = {
+    #     variable_name: base_variables_value_by_name.get(variable_name, 0)
+    #     for variable_name, variable_definition in definition_by_variable_name.items()
+    #     if core.is_base_variable(variable_name)
+    #     }
 
-    errors = verifs.get_errors(
-        base_variables=base_variables,
-        saisie_variables=saisie_variables,
-        )
+    # errors = verifs.get_errors(
+    #     base_variables=base_variables,
+    #     saisie_variables=saisie_variables,
+    #     )
+    errors = None
     if errors is not None:
         errors_definitions = load_errors_definitions()
         definition_by_error_name = pipe(errors_definitions, map(lambda d: (d['name'], d)), dict)
@@ -145,7 +146,8 @@ def main():
             ))
 
     formulas_functions = formulas.get_formulas(
-        base_variables=base_variables,
+        # base_variables=base_variables,
+        base_variables=None,
         saisie_variables=saisie_variables,
         )
 

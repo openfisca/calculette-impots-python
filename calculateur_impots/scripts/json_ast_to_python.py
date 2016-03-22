@@ -96,17 +96,19 @@ def iter_ast_json_file_names(filenames, excluded_filenames=None):
 
 
 def load_regles_file(json_file_name):
-    regles_nodes = read_ast_json_file(json_file_name)
-    return mapcat(python_source_visitors.visit_node, regles_nodes)
+    return pipe(
+        read_ast_json_file(json_file_name),
+        filter(lambda node: 'batch' in node['applications']),
+        mapcat(python_source_visitors.visit_node),
+        )
 
 
 def load_verifs_file(json_file_name):
-    verifs_nodes = read_ast_json_file(json_file_name)
-    verifs_nodes = filter(
-        lambda node: 'batch' in node['applications'],
-        verifs_nodes,
+    return pipe(
+        read_ast_json_file(json_file_name),
+        filter(lambda node: 'batch' in node['applications']),
+        map(python_source_visitors.visit_node),
         )
-    return map(python_source_visitors.visit_node, verifs_nodes)
 
 
 # Main
@@ -154,9 +156,8 @@ def main():
     # Transpile verification functions
 
     verif_sources = list(
-        mapcat(load_verifs_file, iter_ast_json_file_names(filenames=['coc*.json', 'coi*.json'])),
+        mapcat(load_verifs_file, iter_ast_json_file_names(filenames=['coc*.json', 'coi*.json']))
         )
-
     verifs_source = """\
 from . import formulas
 from ..formulas_helpers import *
@@ -178,32 +179,10 @@ def get_errors(base_variables, saisie_variables):
 
     # Transpile formulas
 
-    regles_sources_dicts = list(mapcat(
+    source_by_formula_name = dict(list(mapcat(
         load_regles_file,
         iter_ast_json_file_names(filenames=['chap-*.json', 'res-ser*.json']),
-        ))
-
-    def iter_formula_name_and_source_pairs(preferred_application='batch'):
-        visited_applications_by_variable_name = {}
-        for regle_sources_dicts in regles_sources_dicts:
-            applications = regle_sources_dicts['applications']
-            assert applications is not None
-            for variable_name, source in regle_sources_dicts['sources']:
-                visited_applications = visited_applications_by_variable_name.get(variable_name)
-                if visited_applications is not None:
-                    is_double_defined_in_preferred_application = preferred_application in applications and \
-                        preferred_application in visited_applications
-                    assert not is_double_defined_in_preferred_application, (variable_name, visited_applications)
-                    log.debug(
-                        'Variable "{}" already visited and had another application, '
-                        'but this one of "{}" is preferred => keep the source ({}) '
-                        'and the applications({}) of this one.'.format(
-                            variable_name, preferred_application, source, applications))
-                visited_applications_by_variable_name[variable_name] = applications
-                if preferred_application in applications or visited_applications is None:
-                    yield variable_name, source
-
-    source_by_formula_name = dict(iter_formula_name_and_source_pairs())
+        )))
 
     def get_formula_source(formula_name):
         sanitized_name = core.sanitized_variable_name(formula_name)
@@ -212,7 +191,7 @@ def get_errors(base_variables, saisie_variables):
                 'corrective' not in definition_by_variable_name.get(formula_name, {}).get('regle_tags', []) \
             else 'def {}(): return 0\n'.format(sanitized_name)
 
-    def should_appear_in_formulas_file(variable_name):
+    def should_be_in_formulas_file(variable_name):
         return not core.is_saisie_variable(variable_name) and not core.is_constant(variable_name)
 
     dependencies_by_formula_name = formulas_helpers.load_dependencies_by_formula_name()
@@ -222,12 +201,12 @@ def get_errors(base_variables, saisie_variables):
             concat(dependencies_by_formula_name.values()),
             definition_by_variable_name.keys(),
             ),
-        filter(should_appear_in_formulas_file),
+        filter(should_be_in_formulas_file),
         set,
         )
     write_source_file(
         file_name='formulas.py',
-        source=formulas_file_source(formulas_sources=map(get_formula_source, formula_names)),
+        source=formulas_file_source(map(get_formula_source, formula_names)),
         )
 
     return 0
