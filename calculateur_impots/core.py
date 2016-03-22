@@ -27,8 +27,8 @@ def get_variable_type(variable_name):
     return get_variable_definition(variable_name, {}).get('type')
 
 
-def has_tag(tag, variable_name):
-    return tag in get_in(['attributes', 'tags'], get_variable_definition(variable_name, {}), default=[])
+def has_subtype(tag, variable_name):
+    return tag in get_variable_definition(variable_name, {}).get('subtypes', [])
 
 
 def is_constant(variable_name):
@@ -37,7 +37,7 @@ def is_constant(variable_name):
 
 
 def is_base_variable(variable_name):
-    return is_calculee_variable(variable_name) and has_tag('base', variable_name)
+    return is_calculee_variable(variable_name) and has_subtype('base', variable_name)
 
 
 def is_calculee_variable(variable_name):
@@ -45,7 +45,7 @@ def is_calculee_variable(variable_name):
 
 
 def is_restituee_variable(variable_name):
-    return is_calculee_variable(variable_name) and has_tag('restituee', variable_name)
+    return is_calculee_variable(variable_name) and has_subtype('restituee', variable_name)
 
 
 def is_saisie_variable(variable_name):
