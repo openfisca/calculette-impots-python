@@ -188,6 +188,7 @@ def get_errors(base_variables, saisie_variables):
         sanitized_name = core.sanitized_variable_name(formula_name)
         return source_by_formula_name[sanitized_name] \
             if sanitized_name in source_by_formula_name and \
+                not core.has_tag('base', formula_name) and \
                 'corrective' not in definition_by_variable_name.get(formula_name, {}).get('regle_tags', []) \
             else 'def {}(): return 0\n'.format(sanitized_name)
 
