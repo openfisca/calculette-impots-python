@@ -74,12 +74,10 @@ def main():
             log.warning(not_restituee_message)
             # parser.error(not_restituee_message)
 
-    saisie_variables = {
-        'V_ANREV': 2014,
-        }
-    if args.saisie_variables is not None:
-        saisie_variables.update(iter_saisie_variables(args.saisie_variables))
-    log.debug('saisie_variables: {}'.format(saisie_variables))
+    saisie_variables = dict(iter_saisie_variables(args.saisie_variables))
+    if 'V_ANREV' not in saisie_variables:
+        log.warning('V_ANREV should be given as a "saisie" variable. Hint: --saisie V_ANREV=2014')
+    # log.debug('saisie_variables: {}'.format(saisie_variables))
 
     result_by_formula_name_cache = {}
     formulas_functions = formulas.get_formulas(
@@ -95,28 +93,22 @@ def main():
         if errors is not None:
             errors_definitions = load_errors_definitions()
             definition_by_error_name = pipe(errors_definitions, map(lambda d: (d['name'], d)), dict)
-            print('errors: {}'.format(
-                json.dumps(
-                    [
-                        (
-                            error,
-                            definition_by_error_name.get(error, {}).get('description', 'No error description found'),
-                            )
-                        for error in unique(errors)  # Keep order
-                        ],
-                    indent=4,
-                    ),
-                ))
+            log.error('verif errors: {}'.format(json.dumps(
+                [
+                    (
+                        error,
+                        definition_by_error_name.get(error, {}).get('description'),
+                        )
+                    for error in unique(errors)  # Keep order
+                    ],
+                indent=4,
+                )))
 
     for calculee_variable_name in args.calculee_variables:
-        sanitized_calculee_variable = core.sanitized_variable_name(calculee_variable_name)
-        # requested_formula_result = formulas_functions[sanitized_calculee_variable]()
-        # print('{} = {} ({})'.format(calculee_variable_name, requested_formula_result,
-        #                             core.get_variable_description(calculee_variable_name)))
         try:
-            requested_formula_result = formulas_functions[sanitized_calculee_variable]()
+            requested_formula_result = formulas_functions[calculee_variable_name]()
         except:
-            log.exception('Error while calculating {}'.format(sanitized_calculee_variable))
+            log.exception('Error while calculating {}'.format(calculee_variable_name))
         else:
             print('{} = {} ({})'.format(calculee_variable_name, requested_formula_result,
                                         core.get_variable_description(calculee_variable_name)))

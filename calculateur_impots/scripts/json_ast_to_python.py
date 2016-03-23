@@ -219,11 +219,7 @@ def get_formulas(cache, saisie_variables):
     formulas = {}
 
 $formulas
-    return {
-        key: val
-        for key, val in locals().items()
-        if inspect.isfunction(val)
-        }
+    return formulas
 """).substitute(
             formulas=textwrap.indent(
                 '\n'.join(map(get_formula_source, formula_names)),
