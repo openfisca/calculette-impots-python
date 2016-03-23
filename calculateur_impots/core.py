@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from toolz import get_in, keyfilter
+from toolz import keyfilter
 
 
 def find_restituee_variables():
