@@ -23,6 +23,9 @@ setup(
     license='http://www.fsf.org/licensing/licenses/agpl-3.0.html',
     url='https://git.framasoft.org/openfisca/calculette-impots-python',
 
-    install_requires=['toolz >= 0.7.4'],
+    install_requires=[
+        'calculette_impots_m_language_parser >= 0.0.0.dev0',
+        'toolz >= 0.7.4',
+        ],
     packages=find_packages(),
     )
