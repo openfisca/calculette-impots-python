@@ -26,6 +26,21 @@ log = logging.getLogger(__name__)
 # Helpers
 
 
+def make_formula_source(formula_name, expression, cached=True, description=None):
+    sanitized_name = core.sanitized_variable_name(formula_name)
+    return """\
+{decorator}def {sanitized_name}():
+    {docstring}return {expression}
+formulas[{formula_name!r}] = {sanitized_name}
+""".format(
+        decorator='@cached(cache)\n' if cached else '',
+        docstring='' if description is None else '"""{}"""\n    '.format(description),
+        expression=expression,
+        formula_name=formula_name,
+        sanitized_name=sanitized_name,
+        )
+
+
 def visit_infix_expression(node, operators={}):
     def interleave(*iterables):
         for values in itertools.zip_longest(*iterables, fillvalue=UnboundLocalError):
@@ -136,27 +151,15 @@ def visit_float(node):
 
 def visit_formula(node):
     formula_name = node['name']
-    sanitized_formula_name = core.sanitized_variable_name(formula_name)
+    sanitized_name = core.sanitized_variable_name(formula_name)
     expression_source = visit_node(node['expression'])
-    docstring_lines = []
     description = core.get_variable_description(formula_name)
-    if description is not None:
-        docstring_lines.append(description)
-    if 'pour_formula' in node:
-        docstring_lines.append('From {}'.format(node['pour_formula']['name']))
-    source = """\
-@cached
-def {formula_name}():
-    \"\"\"
-{docstring}
-    \"\"\"
-    return {expression}
-""".format(
-        docstring=textwrap.indent('\n'.join(docstring_lines), prefix=4 * ' '),
+    source = make_formula_source(
+        description=description,
         expression=expression_source,
-        formula_name=sanitized_formula_name,
+        formula_name=formula_name,
         )
-    return (sanitized_formula_name, source)
+    return (sanitized_name, source)
 
 
 def visit_function_call(node):
@@ -216,12 +219,13 @@ def visit_sum_expression(node):
 
 def visit_symbol(node):
     symbol = node['value']
+    sanitized_name = core.sanitized_variable_name(symbol)
     return 'saisie_variables.get({!r}, 0)'.format(symbol) \
         if core.is_saisie_variable(symbol) \
         else (
-            '{}()'.format(core.sanitized_variable_name(symbol))
+            'formulas[{!r}]()'.format(symbol)
             if core.is_calculee_variable(symbol)
-            else core.sanitized_variable_name(symbol)
+            else sanitized_name
             )
 
 
