@@ -20,7 +20,7 @@ un [`virtualenv`](https://virtualenv.readthedocs.org/en/latest/) s'il le souhait
 Cette étape n'est utile que lorsque les fichiers JSON définissant l'AST changent.
 
 ```
-python3 calculette_impots/scripts/json_ast_to_python.py /path/to/m-language-parser/json
+python3 calculette_impots/scripts/json_ast_to_python.py /path/to/calculette-impots-m-language-parser/json
 ```
 
 ## Utilisation
