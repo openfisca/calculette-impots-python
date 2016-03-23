@@ -1,4 +1,4 @@
-# Calculateur Impôts en Python
+# Calculette Impôts traduite en Python
 
 ## Installation
 
@@ -20,7 +20,7 @@ un [`virtualenv`](https://virtualenv.readthedocs.org/en/latest/) s'il le souhait
 Cette étape n'est utile que lorsque les fichiers JSON définissant l'AST changent.
 
 ```
-$ python3 calculateur_impots/scripts/json_ast_to_python.py /path/to/m-language-parser/json
+python3 calculette_impots/scripts/json_ast_to_python.py /path/to/m-language-parser/json
 ```
 
 ## Utilisation
@@ -28,15 +28,16 @@ $ python3 calculateur_impots/scripts/json_ast_to_python.py /path/to/m-language-p
 Exemple :
 
 ```
-$ python3 calculateur_impots/scripts/calculate.py PPE_SALAVDEFV
+python3 calculette_impots/scripts/calculate.py PPE_SALAVDEFV
 ```
 
 ## Qualité du code
 
 ```
-$ flake8 --max-line-length 120 .
+flake8 --max-line-length 120 .
 ```
 
 ## Simulateur en ligne
 
+Pour comparer les résultats avec ceux du simulateur en ligne :
 http://www3.finances.gouv.fr/calcul_impot/2015/simplifie/index.htm

@@ -23,7 +23,7 @@ import textwrap
 
 from toolz.curried import concat, concatv, filter, first, map, mapcat, pipe, sorted, valmap
 
-from calculateur_impots import core, formulas_helpers, python_source_visitors
+from calculette_impots import core, formulas_helpers, python_source_visitors
 
 
 # Globals
@@ -73,7 +73,7 @@ def iter_ast_json_file_names(filenames, excluded_filenames=None):
 
 
 def load_dependencies_by_formula_name():
-    m_language_parser_dir_path = pkg_resources.get_distribution('m_language_parser').location
+    m_language_parser_dir_path = pkg_resources.get_distribution('calculette_impots_m_language_parser').location
     variables_dependencies_file_path = os.path.join(m_language_parser_dir_path, 'json', 'data',
                                                     'formulas_dependencies.json')
     with open(variables_dependencies_file_path) as variables_dependencies_file:

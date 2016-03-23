@@ -1,4 +1,3 @@
-calculateur_impots.egg-info
-calculateur_impots/__pycache__/
-calculateur_impots/dummy
-calculateur_impots/generated/__pycache__/
+*.egg-info
+*.pyc
+__pycache__

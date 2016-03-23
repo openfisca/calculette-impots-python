@@ -18,8 +18,8 @@ setup(
         'Programming Language :: Python',
         'Topic :: Scientific/Engineering :: Information Analysis',
         ],
-    description='Calculateur des impôts compilé en Python',
-    keywords='calculateur impôts tax',
+    description='Calculette des impôts traduite en Python',
+    keywords='calculette impôts tax',
     license='http://www.fsf.org/licensing/licenses/agpl-3.0.html',
     url='https://git.framasoft.org/openfisca/calculette-impots-python',
 
