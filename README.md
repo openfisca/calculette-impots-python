@@ -28,7 +28,7 @@ python3 calculette_impots/scripts/json_ast_to_python.py /path/to/calculette-impo
 Ce paquet installe une commande `calculette-impots`.
 
 Sans argument, `calculette-impots` calcule toutes les variables restituée,
-sans remplir aucune case de la déclaration. Cela équivaut à être célibataire, sans enfants, et sans revenu.
+sans remplir aucune case de la déclaration. Cela équivaut à un célibataire sans enfants et sans revenu.
 
 Il faut tout de même préciser une variable de saisie spéciale (`V_ANREV` pour "Annee des revenus") pour laquelle
 on donne la valeur `2014` car ici on calcule les impôts de 2015 sur les revenus de 2014.
@@ -76,6 +76,29 @@ PPENBJ = 360 (PPE:NOMBRE DE JOURS DE LA PERIODE)
 $ calculette-impots --saisies V_ANREV=2014 --calculees PPENBJ LIGNEMP --no-verifs
 PPENBJ = 360 (PPE:NOMBRE DE JOURS DE LA PERIODE)
 LIGNEMP = 1 (Indicateur ligne impot net)
+```
+
+Testons d'autres cas-types.
+
+- Un célibataire sans enfants gagnant 10000€ par an
+```
+$ calculette-impots --saisies V_ANREV=2014 TSHALLOV=10000 --no-verifs --calculees IRN
+IRN = 0 (Impot net ou restitution nette)
+```
+- Un célibataire sans enfants gagnant 30000€ par an
+```
+$ calculette-impots --saisies V_ANREV=2014 TSHALLOV=30000 --no-verifs --calculees IRN
+IRN = 2461 (Impot net ou restitution nette)
+```
+- Un couple non marié sans enfants dont le déclarant 1 gagne 10000€ par an et le déclarant 2 gagne 20000€ par an
+```
+$ calculette-impots --saisies V_ANREV=2014 TSHALLOV=10000 TSHALLOC=20000 --no-verifs --calculees IRN
+IRN = 2461 (Impot net ou restitution nette)
+```
+- Un couple marié (date du mariage `05/05/1980`) sans enfants dont le déclarant 1 gagne 10000€ par an et le déclarant 2 gagne 20000€ par an
+```
+$ calculette-impots --saisies V_ANREV=2014 TSHALLOV=10000 TSHALLOC=20000 V_0AM=1 V_0AX=05051980 --no-verifs --calculees IRN
+IRN = 264 (Impot net ou restitution nette)
 ```
 
 ## Simulateur en ligne
