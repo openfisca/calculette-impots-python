@@ -10,7 +10,7 @@ import os
 import pkg_resources
 import sys
 
-from toolz.curried import map, merge, pipe, unique, valfilter
+from toolz.curried import get, map, merge, pipe, unique, valfilter
 
 from calculette_impots import core
 from calculette_impots.generated import formulas, verifs
@@ -120,7 +120,7 @@ def main():
         for section, warning_messages in warning_messages_by_section.items():
             for warning_message in warning_messages:
                 log.warning('{}:{}'.format(section, warning_message))
-        for calculee_variable_name, result in results.items():
+        for calculee_variable_name, result in reversed(sorted(results.items(), key=get(1))):
             print('{} = {} ({})'.format(calculee_variable_name, result,
                                         core.get_variable_description(calculee_variable_name)))
     elif args.output_format == 'json':
