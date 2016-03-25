@@ -101,6 +101,8 @@ IRN = 2461 (Impot net ou restitution nette)
 $ calculette-impots --saisies V_ANREV=2014 TSHALLOV=10000 TSHALLOC=20000 --no-verifs --calculees IRN
 IRN = 2461 (Impot net ou restitution nette)
 ```
+> Note: ce couple est censé remplir deux déclarations, la situation simulée ici n'est pas correcte et c'est la désactivation des vérifications qui rend possible ce calcul.
+
 - Un couple marié (date du mariage `05/05/1980`) sans enfants dont le déclarant 1 gagne 10000€ par an et le déclarant 2 gagne 20000€ par an
 ```
 $ calculette-impots --saisies V_ANREV=2014 TSHALLOV=10000 TSHALLOC=20000 V_0AM=1 V_0AX=05051980 --no-verifs --calculees IRN
