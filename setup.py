@@ -24,10 +24,11 @@ setup(
     url='https://git.framasoft.org/openfisca/calculette-impots-python',
 
     entry_points={
-        'console_scripts': ['calculette-impots=calculette_impots.scripts.calculate:main'],
+        'console_scripts': ['calculette-impots=calculette_impots.scripts.command_line:main'],
         },
     install_requires=[
         'calculette_impots_m_language_parser >= 0.0.0.dev0',
+        'docopt',
         'toolz >= 0.7.4',
         ],
     packages=find_packages(),

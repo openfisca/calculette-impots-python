@@ -29,84 +29,145 @@ python3 calculette_impots/scripts/json_ast_to_python.py /path/to/calculette-impo
 
 ## Utilisation
 
-Ce paquet installe une commande `calculette-impots`.
+Ce paquet installe une commande `calculette-impots` dans votre répertoire utilisateur.
+Cela signifie que vous pouvez la taper dans un terminal et elle sera reconnue, sauf si elle a été installée
+en dehors du "PATH".
 
-Sans argument, `calculette-impots` calcule toutes les variables restituée,
+Cette commande accepte des sous-commandes. Voyons son utilisation :
+
+```
+$ calculette-impots
+Usage:
+  calculette-impots calculate [--no-verifs] VARIABLE...
+  calculette-impots info VARIABLE...
+  calculette-impots (-h | --help)
+  calculette-impots --version
+```
+
+### La sous-commande `info`
+
+La sous-commande `info` permet d'afficher des informations sur les variables, en particulier leur type,
+quelques attributs, leurs éventuelles dépendances et dépendances inverses.
+
+Exemple :
+
+```
+$  $ calculette-impots info TSHALLOV
+{
+  "TSHALLOV": {
+    "variable_definition": {
+      "alias": "1AJ",
+      "attributes": {
+        "acompte": 1,
+        "avfisc": 0,
+        "categorie_TL": 20,
+        "classe": 0,
+        "cotsoc": 5,
+        "ind_abat": 1,
+        "nat_code": 0,
+        "priorite": 10,
+        "rapcat": 4,
+        "sanction": 8
+      },
+      "description": "Salaires - Declarant 1",
+      "name": "TSHALLOV",
+      "restituee": true,
+      "subtype": "revenu",
+      "tgvh_linecol": [
+        13637,
+        1
+      ],
+      "type": "variable_saisie"
+    },
+    "variable_reverse_dependencies": [
+      "ABTS1AJ",
+      "INDPPEV",
+      "INDREV1A8IR",
+      [...]
+    ]
+  }
+}
+```
+
+Certains bouts ont été coupés pour ne pas polluer le README.
+
+Ceci était une variable de saisie mais on peut également obtenir des infos les variables calculées.
+
+### La sous-commande `calculate`
+
+Sans argument, la sous-commande `calculate` calcule toutes les variables restituées,
 sans remplir aucune case de la déclaration. Cela équivaut à un célibataire sans enfants et sans revenu.
 
 Il faut tout de même préciser une variable de saisie spéciale (`V_ANREV` pour "Annee des revenus") pour laquelle
 on donne la valeur `2014` car ici on calcule les impôts de 2015 sur les revenus de 2014.
+Si on ne le fait pas un "warning" nous le rappelle.
 
 De plus, pour l'instant, on peut passer une autre option (`--no-verifs`) à la commande `calculette-impots`
 pour ignorer les "vérifs", qui sont des tests validant la cohérence des calculs.
 
 ```
-$ calculette-impots --saisies V_ANREV=2014 --no-verifs
-SEUILCIIMSI = 13956 (donnee equipe batch pour CNTDF : seuil imposition  tx normal CSG)
-SEUILCIRIRF = 10676 (donnee equipe batch pour CNTDF : seuil imposition CSG CRDS)
-PPENBJ = 360 (PPE:NOMBRE DE JOURS DE LA PERIODE)
-TXTO = 80 (TAUX TO RESTITUE)
-TXREGV = 80 (TAUX interets de retard + majo Regul assurance vie - 'avis)
-ABSPE = 9 (indicateur abattements speciaux personnes agees)
-INDGARD = 9 (Indicateur de plafonnement de frais de garde (AGARD))
-MESGOUV2 = 6 (Indicateur beneficiaire mesures fiscales bas de bareme (simulateur))
-MESGOUV = 3 (Indicateur beneficiaire des mesures fiscales de bas de bareme)
-INDCEX = 3 (Indicateur Brav pour restit non imp presqu imposable et autre )
-[...]
+$ calculette-impots calculate V_ANREV=2014 --no-verifs
+{
+  "calculate_results": {
+    "ABSPE": 9,
+    "APPLI_BATCH": 1,
+    "CIIMSI": 2,
+    "CIRIRF": 2,
+    [...]
+  }
+}
 ```
 
-Les résultats sont triés par ordre décroissant sur les valeurs.
-La sortie est coupée pour ne pas surcharger le README.
+Le JSON de sortie est coupé ici pour ne pas surcharger le README.
+Pour info on peut utiliser un outil comme [`jq`](https://stedolan.github.io/jq/) pour le manipuler.
 
-On peut changer le format de sortie en précision l'option `--output-format`, par exemple en JSON comme ceci :
-
-```
-$ calculette-impots --saisies V_ANREV=2014 --output-format=json --no-verifs
-{"results": {"ABSPE": 9, "APPLI_BATCH": 1, "CIIMSI": 2, "CIRIRF": 2, "IND12": 3, "IND61IR": 3, "IND61PS": 3, "INDCEX": 3, "INDEFTS1": 1, "INDEFTS2": 1, "INDEFTS3": 1, "INDEFTS4": 1, "INDEFTSC": 1, "INDEFTSV": 1, "INDEXOGEN": 1, "INDGARD": 9, "INDIRPS": 1, "LIG1": 1, "LIG10": 1, "LIG10C": 1, "LIG10P": 1, "LIG10V": 1, "LIG2": 1, "LIG2052": 1, "LIG2501": 1, "LIGLOCSEUL": 1, "LIGNEMP": 1, "MESGOUV": 3, "MESGOUV2": 6, "NATMAJ": 1, "NATMAJC": 1, "NATMAJCDIS": 1, "NATMAJCVN": 1, "NATMAJGLOA": 1, "NATMAJP": 1, "NATMAJR": 1, "NATMAJREGV": 1, "NATMAJRSE1": 1, "NATMAJRSE2": 1, "NATMAJRSE3": 1, "NATMAJRSE4": 1, "NATMAJRSE5": 1, "NBFOTH": 1, "NBPT": 1.0, "NONLIGPS": 1, "PPENBJ": 360, "SEUILCIIMSI": 13956, "SEUILCIRIRF": 10676, "TXREGV": 80, "TXTO": 80}}
-```
-
-Le JSON résultant étant très compact on peut utiliser un outil comme [`jq`](https://stedolan.github.io/jq/)
-pour le manipuler.
-
-> À noter qu'avec la sortie au format JSON les résultats ne sont pas triés par valeur
-> mais les clés du JSON sont triées par ordre alphabétique.
-
-On peut demander à calculer seulement une ou plusieurs variables en particulier :
-
-```
-$ calculette-impots --saisies V_ANREV=2014 --calculees PPENBJ --no-verifs
-PPENBJ = 360 (PPE:NOMBRE DE JOURS DE LA PERIODE)
-
-$ calculette-impots --saisies V_ANREV=2014 --calculees PPENBJ LIGNEMP --no-verifs
-PPENBJ = 360 (PPE:NOMBRE DE JOURS DE LA PERIODE)
-LIGNEMP = 1 (Indicateur ligne impot net)
-```
+Ceci était une simulation à vide, maintenant il serait intéressant de remplir les cases de la déclaration d'impôts.
 
 ## Cas-types
 
-Testons d'autres cas-types.
+Tout d'abord il faut savoir qu'on peut demander à calculer une ou plusieurs variables en particulier.
+Pour cela il suffit d'ajouter le nom des variables mais sans le signe "=".
+
+```
+$ calculette-impots calculate V_ANREV=2014 IRN IDRS2 --no-verifs
+{
+  "calculate_results": {
+    "IDRS2": 0,
+    "IRN": 0
+  }
+}
+```
+
+Il faut aussi savoir que la variable `IRN` correspond (grosso-modo) à l'impôt total. C'est pour cela qu'on la demande.
+
+Testons à présent quelques cas-types.
 
 - Un célibataire sans enfants gagnant 10000€ par an
 ```
-$ calculette-impots --saisies V_ANREV=2014 TSHALLOV=10000 --no-verifs --calculees IRN
-IRN = 0 (Impot net ou restitution nette)
+$ calculette-impots calculate V_ANREV=2014 TSHALLOV=10000 IRN --no-verifs
+{
+  "calculate_results": {
+    "IRN": 0
+  }
+}
 ```
 - Un célibataire sans enfants gagnant 30000€ par an
 ```
-$ calculette-impots --saisies V_ANREV=2014 TSHALLOV=30000 --no-verifs --calculees IRN
-IRN = 2461 (Impot net ou restitution nette)
+$ calculette-impots calculate V_ANREV=2014 TSHALLOV=30000 IRN --no-verifs
+{
+  "calculate_results": {
+    "IRN": 2461
+  }
+}
 ```
-- Un couple non marié sans enfants dont le déclarant 1 gagne 10000€ par an et le déclarant 2 gagne 20000€ par an
+- Un couple marié (date du mariage 05/05/1980) sans enfants dont le déclarant 1 gagne 10000€ par an et le déclarant 2 gagne 20000€ par an
 ```
-$ calculette-impots --saisies V_ANREV=2014 TSHALLOV=10000 TSHALLOC=20000 --no-verifs --calculees IRN
-IRN = 2461 (Impot net ou restitution nette)
-```
-> Note: ce couple est censé remplir deux déclarations, la situation simulée ici n'est pas correcte et c'est la désactivation des vérifications qui rend possible ce calcul.
-
-- Un couple marié (date du mariage `05/05/1980`) sans enfants dont le déclarant 1 gagne 10000€ par an et le déclarant 2 gagne 20000€ par an
-```
-$ calculette-impots --saisies V_ANREV=2014 TSHALLOV=10000 TSHALLOC=20000 V_0AM=1 V_0AX=05051980 --no-verifs --calculees IRN
-IRN = 264 (Impot net ou restitution nette)
+$ calculette-impots calculate V_ANREV=2014 TSHALLOV=10000 TSHALLOC=20000 V_0AM=1 V_0AX=05051980 IRN --no-verifs
+{
+  "calculate_results": {
+    "IRN": 264
+  }
+}
 ```
 
 ## Simulateur en ligne
