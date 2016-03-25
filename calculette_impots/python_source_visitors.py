@@ -4,7 +4,7 @@
 """
 Functions used to transpile the JSON AST nodes to Python source code.
 Each function `visit_abc` handles a node of type 'abc' and returns either a string or None.
-These functions are called by transpiler.core.
+The dispatcher function (`visit_node`) is called from the script `json_ast_to_python.py`.
 """
 
 
@@ -17,27 +17,25 @@ import textwrap
 from calculette_impots_m_language_parser.unloop_helpers import iter_unlooped_nodes
 from toolz import concatv, interpose, mapcat
 
-from . import core
-
 
 log = logging.getLogger(__name__)
+variables_definitions = None
 
 
 # Helpers
 
 
-def make_formula_source(formula_name, expression, cached=True, description=None):
-    sanitized_name = core.sanitized_variable_name(formula_name)
+def make_formula_source(formula_name, expression, cached=False, description=None):
     return """\
-{decorator}def {sanitized_name}():
+{decorator}def {function_name}():
     {docstring}return {expression}
-formulas[{formula_name!r}] = {sanitized_name}
+formulas[{formula_name!r}] = {function_name}
 """.format(
         decorator='@cached(cache)\n' if cached else '',
         docstring='' if description is None else '"""{}"""\n    '.format(description),
         expression=expression,
         formula_name=formula_name,
-        sanitized_name=sanitized_name,
+        function_name='_' + formula_name if formula_name[0].isdigit() else formula_name,
         )
 
 
@@ -150,16 +148,17 @@ def visit_float(node):
 
 
 def visit_formula(node):
+    global variables_definitions
     formula_name = node['name']
-    sanitized_name = core.sanitized_variable_name(formula_name)
     expression_source = visit_node(node['expression'])
-    description = core.get_variable_description(formula_name)
+    description = variables_definitions.get_description(formula_name)
     source = make_formula_source(
+        cached=True,
         description=description,
         expression=expression_source,
         formula_name=formula_name,
         )
-    return (sanitized_name, source)
+    return (formula_name, source)
 
 
 def visit_function_call(node):
@@ -218,15 +217,7 @@ def visit_sum_expression(node):
 
 
 def visit_symbol(node):
-    symbol = node['value']
-    sanitized_name = core.sanitized_variable_name(symbol)
-    return 'saisie_variables.get({!r}, 0)'.format(symbol) \
-        if core.is_saisie_variable(symbol) \
-        else (
-            'formulas[{!r}]()'.format(symbol)
-            if core.is_calculee_variable(symbol)
-            else sanitized_name
-            )
+    return 'formulas[{!r}]()'.format(node['value'])
 
 
 def visit_ternary_operator(node):

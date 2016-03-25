@@ -23,7 +23,8 @@ import textwrap
 
 from toolz.curried import concat, concatv, filter, first, map, mapcat, pipe, sorted, valmap
 
-from calculette_impots import core, formulas_helpers, python_source_visitors
+from calculette_impots import formulas_helpers, loaders, python_source_visitors
+from calculette_impots.variables_definitions import VariablesDefinitions
 
 
 # Globals
@@ -59,27 +60,17 @@ def write_source_file(file_name, source):
 # Functions to read JSON data files
 
 
-def iter_ast_json_file_names(filenames, excluded_filenames=None):
+def iter_ast_json_file_names(filenames):
     json_file_paths = pipe(
         filenames,
-        mapcat(lambda pathname: glob.iglob(os.path.join(args.json_dir, 'ast', pathname))),
-        filter(lambda file_path: excluded_filenames is None or os.path.basename(file_path) not in excluded_filenames),
+        map(lambda pathname: os.path.join(args.json_dir, 'ast', pathname)),
+        mapcat(glob.iglob),
         sorted,
         )
     for json_file_path in json_file_paths:
         json_file_name = os.path.basename(json_file_path)
         file_name_head = os.path.splitext(json_file_name)[0]
         yield json_file_name
-
-
-def load_dependencies_by_formula_name():
-    m_language_parser_dir_path = pkg_resources.get_distribution('calculette_impots_m_language_parser').location
-    variables_dependencies_file_path = os.path.join(m_language_parser_dir_path, 'json', 'data',
-                                                    'formulas_dependencies.json')
-    with open(variables_dependencies_file_path) as variables_dependencies_file:
-        variables_dependencies_str = variables_dependencies_file.read()
-    dependencies_by_formula_name = json.loads(variables_dependencies_str)
-    return dependencies_by_formula_name
 
 
 def load_regles_file(json_file_name):
@@ -127,32 +118,15 @@ def main():
         stream=sys.stdout,
         )
 
+    if not os.path.exists(args.json_dir):
+        parser.error('json_dir {!r} does not exist'.format(args.json_dir))
+
     if not os.path.isdir(generated_dir_path):
         os.mkdir(generated_dir_path)
 
-    # Transpile constants
+    # Initialize a variables_definitions object and set global variable in visitors
 
-    constants_file_name = os.path.join('data', 'constants.json')
-    constants = read_json_file(json_file_name=constants_file_name)
-    constants_source = pipe(
-        constants.items(),
-        sorted,
-        map(lambda item: '{} = {}'.format(*item)),
-        as_lines,
-        )
-    write_source_file(
-        file_name='constants.py',
-        source=constants_source,
-        )
-
-    # Transpile variables definitions
-
-    variables_definitions_file_name = os.path.join('data', 'variables_definitions.json')
-    definition_by_variable_name = read_json_file(json_file_name=variables_definitions_file_name)
-    write_source_file(
-        file_name='variables_definitions.py',
-        source='definition_by_variable_name = {}\n'.format(pprint.pformat(definition_by_variable_name, width=120)),
-        )
+    variables_definitions = python_source_visitors.variables_definitions = VariablesDefinitions()
 
     # Transpile verification functions
 
@@ -161,7 +135,6 @@ def main():
         )
     verifs_source = Template("""\
 from ..formulas_helpers import arr, cached, inf, interval, null, positif, positif_ou_nul, present, somme
-from .constants import *  # noqa
 
 
 def get_errors(formulas, saisie_variables):
@@ -182,47 +155,55 @@ $verifs
         iter_ast_json_file_names(filenames=['chap-*.json', 'res-ser*.json']),
         )))
 
-    def get_formula_source(formula_name):
-        sanitized_name = core.sanitized_variable_name(formula_name)
-        return source_by_formula_name[sanitized_name] \
-            if sanitized_name in source_by_formula_name \
-        else python_source_visitors.make_formula_source(
-            cached=False,
-            formula_name=formula_name,
-            expression='0',
-            )
+    def get_formula_source(variable_name):
+        source = source_by_formula_name.get(variable_name)
+        if source is not None:
+            return source
+        if variables_definitions.is_saisie(variable_name):
+            return python_source_visitors.make_formula_source(
+                expression='saisie_variables.get({!r}, 0)'.format(variable_name),
+                formula_name=variable_name,
+                )
+        if variables_definitions.is_constant(variable_name):
+            return python_source_visitors.make_formula_source(
+                expression='constants[{!r}]'.format(variable_name),
+                formula_name=variable_name,
+                )
+        if variables_definitions.is_calculee(variable_name):
+            if not variables_definitions.has_subtype(variable_name, 'base'):
+                log.debug('Variable {!r} is declared in tgvH file but has no formula'.format(variable_name))
+            return python_source_visitors.make_formula_source(
+                expression='0',
+                formula_name=variable_name,
+                )
+        assert False, variable_name
 
-    def should_be_in_formulas_file(variable_name):
-        return not core.is_saisie_variable(variable_name) and not core.is_constant(variable_name)
-
-    dependencies_by_formula_name = load_dependencies_by_formula_name()
-    formula_names = pipe(
-        concatv(
-            dependencies_by_formula_name.keys(),
-            concat(dependencies_by_formula_name.values()),
-            definition_by_variable_name.keys(),
-            ),
-        set,
-        filter(should_be_in_formulas_file),
-        sorted,
-        )
+    # Merge variable names coming from dependencies graph and variables definitions
+    # because some variables are missing in tgvH file;
+    # or some constants are declared in tgvH but are not used in formulas, only in verifs.
+    dependencies_by_formula_name = loaders.load_formulas_dependencies()
+    all_variable_names = set(concatv(
+        dependencies_by_formula_name.keys(),
+        concat(dependencies_by_formula_name.values()),
+        variables_definitions.definition_by_variable_name.keys(),
+        variables_definitions.constants.keys(),
+        ))
     write_source_file(
         file_name='formulas.py',
         source=Template("""\
 import inspect
 
 from ..formulas_helpers import arr, cached, inf, interval, null, positif, positif_ou_nul, present, somme
-from .constants import *  # noqa
 
 
-def get_formulas(cache, saisie_variables):
+def get_formulas(cache, constants, saisie_variables):
     formulas = {}
 
 $formulas
     return formulas
 """).substitute(
             formulas=textwrap.indent(
-                '\n'.join(map(get_formula_source, formula_names)),
+                '\n'.join(map(get_formula_source, sorted(all_variable_names))),
                 prefix=4 * ' ',
                 ),
             ),

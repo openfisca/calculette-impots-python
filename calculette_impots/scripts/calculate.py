@@ -7,26 +7,25 @@ import argparse
 import json
 import logging
 import os
-import pkg_resources
 import sys
 
-from toolz.curried import get, map, merge, pipe, unique, valfilter
+from toolz.curried import get, map, unique, valfilter
 
-from calculette_impots import core
+from calculette_impots import loaders
 from calculette_impots.generated import formulas, verifs
-
-
-# Globals
+from calculette_impots.variables_definitions import VariablesDefinitions
 
 
 args = None
 script_name = os.path.splitext(os.path.basename(__file__))[0]
 log = logging.getLogger(script_name)
 
-script_dir_name = os.path.dirname(os.path.abspath(__file__))
+constants = loaders.load_constants()
+variables_definitions = VariablesDefinitions(constants=constants)
 
 
 def iter_saisie_variables(values):
+    global variables_definitions
     for value, words in map(lambda value: (value, value.strip('=').split('=', 1)), values):
         if len(words) == 1:
             parser.error('Missing value for variable saisie: "{}"'.format(value))
@@ -37,23 +36,14 @@ def iter_saisie_variables(values):
             variable_value = float(variable_value)
         except ValueError:
             parser.error('Variable "{}" value is not a float'.format(value))
-        variable_type = core.get_variable_type(variable_name)
-        if variable_type != 'variable_saisie':
+        if not variables_definitions.is_saisie(variable_name):
             parser.error('Variable "{}" is not a variable saisie'.format(variable_name))
         yield variable_name, variable_value
 
 
-def load_errors_definitions():
-    m_language_parser_dir_path = pkg_resources.get_distribution('calculette_impots_m_language_parser').location
-    errors_definitions_file_path = os.path.join(m_language_parser_dir_path, 'json', 'ast', 'errH.json')
-    with open(errors_definitions_file_path) as errors_definitions_file:
-        errors_definitions_str = errors_definitions_file.read()
-    errors_definitions = json.loads(errors_definitions_str)
-    return errors_definitions
-
-
 def main():
-    global args, parser
+    global args, constants, parser, variables_definitions
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Increase output verbosity')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='Display debug messages')
@@ -71,11 +61,11 @@ def main():
     warning_messages_by_section = defaultdict(list)
 
     if args.calculee_variables is None:
-        calculee_variable_names = core.find_restituee_variables()
+        calculee_variable_names = variables_definitions.filter_by_subtype('restituee')
     else:
         calculee_variable_names = args.calculee_variables
         for calculee_variable_name in calculee_variable_names:
-            if not core.is_restituee_variable(calculee_variable_name):
+            if not variables_definitions.has_subtype(calculee_variable_name, 'restituee'):
                 warning_messages_by_section['saisies'].append(
                     'Variable "{}" is not a variable of type "calculee restituee"'.format(calculee_variable_name)
                     )
@@ -89,6 +79,7 @@ def main():
     result_by_formula_name_cache = {}
     formulas_functions = formulas.get_formulas(
         cache=result_by_formula_name_cache,
+        constants=constants,
         saisie_variables=saisie_variables,
         )
 
@@ -98,8 +89,7 @@ def main():
             saisie_variables=saisie_variables,
             )
         if errors is not None:
-            errors_definitions = load_errors_definitions()
-            definition_by_error_name = pipe(errors_definitions, map(lambda d: (d['name'], d)), dict)
+            definition_by_error_name = loaders.load_errors_definitions()
             warning_messages_by_section['verif_errors'] = [
                 (error, definition_by_error_name.get(error, {}).get('description'))
                 for error in unique(errors)  # Keep order
@@ -122,10 +112,10 @@ def main():
                 log.warning('{}:{}'.format(section, warning_message))
         for calculee_variable_name, result in reversed(sorted(results.items(), key=get(1))):
             print('{} = {} ({})'.format(calculee_variable_name, result,
-                                        core.get_variable_description(calculee_variable_name)))
+                                        variables_definitions.get_description(calculee_variable_name)))
     elif args.output_format == 'json':
         print(json.dumps(
-            merge({'results': results}, warning_messages_by_section),
+            {'results': results, 'warnings': warning_messages_by_section},
             sort_keys=True,
             ))
     else:
