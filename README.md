@@ -4,6 +4,10 @@
 
 Le langage Python 3 est utilisé.
 
+Il est nécessaire d'avoir au préalable installé le paquet [calculette-impots-m-language-parser](https://git.framasoft.org/openfisca/calculette-impots-m-language-parser).
+
+Puis installer ce paquet :
+
 ```
 pip3 install --editable . --user
 ```
