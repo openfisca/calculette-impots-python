@@ -78,6 +78,8 @@ PPENBJ = 360 (PPE:NOMBRE DE JOURS DE LA PERIODE)
 LIGNEMP = 1 (Indicateur ligne impot net)
 ```
 
+## Cas-types
+
 Testons d'autres cas-types.
 
 - Un célibataire sans enfants gagnant 10000€ par an
