@@ -115,7 +115,13 @@ def main():
                                         variables_definitions.get_description(calculee_variable_name)))
     elif args.output_format == 'json':
         print(json.dumps(
-            {'results': results, 'warnings': warning_messages_by_section},
+            valfilter(
+                lambda val: val is not None,
+                {
+                    'calculate_results': results,
+                    'warnings': warning_messages_by_section,
+                    },
+                ),
             sort_keys=True,
             ))
     else:
