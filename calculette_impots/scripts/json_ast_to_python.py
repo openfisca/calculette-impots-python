@@ -191,6 +191,8 @@ $verifs
     write_source_file(
         file_name='formulas.py',
         source=Template("""\
+from __future__ import division
+
 import inspect
 
 from ..formulas_helpers import arr, cached, inf, interval, null, positif, positif_ou_nul, present, somme
