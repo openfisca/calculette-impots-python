@@ -8,6 +8,7 @@ Calculette Impôts
 Usage:
   calculette-impots calculate [--no-verifs] VARIABLE...
   calculette-impots info VARIABLE...
+  calculette-impots EXTERNAL_COMMAND
   calculette-impots (-h | --help)
   calculette-impots --version
 """
@@ -16,6 +17,7 @@ Usage:
 from collections import defaultdict
 import json
 import pkg_resources
+import subprocess
 import sys
 
 from docopt import docopt
@@ -160,6 +162,18 @@ def main():
             )
     elif arguments['info']:
         info(variable_names=arguments['VARIABLE'])
+    elif arguments['EXTERNAL_COMMAND']:
+        command = 'calculette-impots-{}'.format(arguments['EXTERNAL_COMMAND'])
+        try:
+            subprocess.run(command)
+        except FileNotFoundError as exc:  # noqa
+            print('error: External command {!r} not found in PATH'.format(command))
+            if arguments['EXTERNAL_COMMAND'] == 'web-api':
+                print('hint: Install the package "https://git.framasoft.org/openfisca/calculette-impots-web-api"')
+            elif arguments['EXTERNAL_COMMAND'] == 'web-explorer':
+                print('hint: Install the package "https://git.framasoft.org/openfisca/calculette-impots-web-explorer"')
+    else:
+        raise NotImplementedError(arguments)
 
     return 0
 
