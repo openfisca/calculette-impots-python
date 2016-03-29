@@ -7,8 +7,7 @@ from . import loaders
 class VariablesDefinitions(object):
     """Query `variables_definitions.json` file in a more convenient way."""
 
-    def __init__(self, constants=None, definition_by_variable_name=None):
-        self.constants = constants or loaders.load_constants()
+    def __init__(self, definition_by_variable_name=None):
         self.definition_by_variable_name = definition_by_variable_name or loaders.load_variables_definitions()
 
     def filter_calculees(self, kind=None):
@@ -29,9 +28,6 @@ class VariablesDefinitions(object):
     def is_calculee(self, variable_name, kind=None):
         return self.get_type(variable_name) == 'variable_calculee' and \
             (True if kind is None else self.definition_by_variable_name[variable_name].get(kind))
-
-    def is_constant(self, variable_name):
-        return variable_name in self.constants
 
     def is_saisie(self, variable_name):
         return self.get_type(variable_name) == 'variable_saisie'

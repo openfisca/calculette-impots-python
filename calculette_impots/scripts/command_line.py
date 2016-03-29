@@ -31,7 +31,7 @@ from calculette_impots.variables_definitions import VariablesDefinitions
 arguments = None
 constants = loaders.load_constants()
 dependencies_by_formula_name = loaders.load_formulas_dependencies()
-variables_definitions = VariablesDefinitions(constants=constants)
+variables_definitions = VariablesDefinitions()
 
 
 def calculate(calculee_variable_names=[], saisie_variables={}):

@@ -150,6 +150,7 @@ $verifs
 
     # Transpile formulas
 
+    constants = loaders.load_constants()
     source_by_formula_name = dict(list(mapcat(
         load_regles_file,
         iter_ast_json_file_names(filenames=['chap-*.json', 'res-ser*.json']),
@@ -164,7 +165,7 @@ $verifs
                 expression='saisie_variables.get({!r}, 0)'.format(variable_name),
                 formula_name=variable_name,
                 )
-        if variables_definitions.is_constant(variable_name):
+        if variable_name in constants:
             return python_source_visitors.make_formula_source(
                 expression='constants[{!r}]'.format(variable_name),
                 formula_name=variable_name,
