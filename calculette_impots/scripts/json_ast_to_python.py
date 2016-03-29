@@ -170,7 +170,7 @@ $verifs
                 formula_name=variable_name,
                 )
         if variables_definitions.is_calculee(variable_name):
-            if not variables_definitions.has_subtype(variable_name, 'base'):
+            if not variables_definitions.is_calculee(variable_name, kind='base'):
                 log.debug('Variable {!r} is declared in tgvH file but has no formula'.format(variable_name))
             return python_source_visitors.make_formula_source(
                 expression='0',

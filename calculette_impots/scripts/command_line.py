@@ -39,10 +39,10 @@ def calculate(calculee_variable_names=[], saisie_variables={}):
 
     nb_calculee_variable_names_requested = len(calculee_variable_names)
     if not calculee_variable_names:
-        calculee_variable_names = variables_definitions.filter_by_subtype('restituee')
+        calculee_variable_names = variables_definitions.filter_calculees(kind='restituee')
     else:
         for calculee_variable_name in calculee_variable_names:
-            if not variables_definitions.has_subtype(calculee_variable_name, 'restituee'):
+            if not variables_definitions.is_calculee(calculee_variable_name, kind='restituee'):
                 warning_messages_by_section['saisies'].append(
                     'Variable "{}" is not a variable of type "calculee restituee"'.format(calculee_variable_name)
                     )
