@@ -187,7 +187,7 @@ $verifs
         dependencies_by_formula_name.keys(),
         concat(dependencies_by_formula_name.values()),
         variables_definitions.definition_by_variable_name.keys(),
-        variables_definitions.constants.keys(),
+        constants.keys(),
         ))
     write_source_file(
         file_name='formulas.py',
