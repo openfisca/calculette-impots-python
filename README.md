@@ -4,11 +4,9 @@
 
 Le langage Python 3 est utilisé.
 
-Ce paquet n'est pas publié sur le dépôt [PyPI](https://pypi.python.org/pypi) donc pour l'installer il faut passer par `git clone`.
-
 Il est nécessaire d'avoir au préalable installé le paquet [calculette-impots-m-language-parser](https://git.framasoft.org/openfisca/calculette-impots-m-language-parser).
 
-Puis installer ce paquet :
+Ce paquet n'est pas publié sur le dépôt [PyPI](https://pypi.python.org/pypi) donc pour l'installer il faut passer par `git clone`.
 
 ```
 git clone https://git.framasoft.org/openfisca/calculette-impots-python.git
