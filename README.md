@@ -4,11 +4,15 @@
 
 Le langage Python 3 est utilisé.
 
+Ce paquet n'est pas publié sur le dépôt [PyPI](https://pypi.python.org/pypi) donc pour l'installer il faut passer par `git clone`.
+
 Il est nécessaire d'avoir au préalable installé le paquet [calculette-impots-m-language-parser](https://git.framasoft.org/openfisca/calculette-impots-m-language-parser).
 
 Puis installer ce paquet :
 
 ```
+git clone https://git.framasoft.org/openfisca/calculette-impots-python.git
+cd calculette-impots-python
 pip3 install --editable . --user
 ```
 
@@ -16,16 +20,6 @@ pip3 install --editable . --user
 
 Un utilisateur plus expérimenté en Python peut utiliser
 un [`virtualenv`](https://virtualenv.readthedocs.org/en/latest/) s'il le souhaite.
-
-## Transpilation de l'AST JSON en Python
-
-> Transpiler signifie compiler vers un autre langage de programmation.
-
-Cette étape n'est utile que lorsque les fichiers JSON définissant l'AST changent.
-
-```
-python3 calculette_impots/scripts/json_ast_to_python.py /path/to/calculette-impots-m-language-parser/json
-```
 
 ## Utilisation
 
@@ -174,6 +168,31 @@ $ calculette-impots calculate V_ANREV=2014 TSHALLOV=10000 TSHALLOC=20000 V_0AM=1
 
 Pour comparer les résultats avec ceux du simulateur en ligne :
 http://www3.finances.gouv.fr/calcul_impot/2015/simplifie/index.htm
+
+Un script permet d'appeler le simulateur en ligne :
+
+```
+python3 calculette_impots/scripts/calculette_online.py
+```
+
+Cependant il n'est pas peaufiné au point d'accepter des arguments sur la ligne de commande.
+Il faut donc l'éditer pour changer les valeurs.
+
+De plus, les noms des variables ne sont pas les mêmes que dans le code source en langage M.
+Ici ce sont les "aliases" qui sont définis dans le fichier `tgvH.m` (dans le projet [m-source-code](https://git.framasoft.org/openfisca/calculette-impots-m-source-code)).
+
+Les contributions sont les bienvenues !
+
+## Transpilation de l'AST JSON en Python
+
+> Transpiler signifie compiler vers un autre langage de programmation.
+
+Cette étape n'est utile que lorsque les fichiers JSON définissant l'AST changent.
+Ceux-ci sont dans le dépôt [m-language-parser](https://git.framasoft.org/openfisca/calculette-impots-m-language-parser).
+
+```
+python3 calculette_impots/scripts/json_ast_to_python.py /path/to/calculette-impots-m-language-parser/json
+```
 
 ## Qualité du code
 
