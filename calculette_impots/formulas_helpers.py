@@ -10,7 +10,8 @@ import math
 # M language functions translated to Python
 
 
-arr = round
+def arr(value):
+    return int(value + 0.5 if value > 0 else value - 0.5)
 
 inf = math.floor
 
